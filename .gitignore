@@ -1,0 +1,14 @@
+# Private reference material: screenshots, game files, recordings and anything
+# else taken from Deadlock itself. Never commit these (Valve content, SSA §2.A).
+/private-reference/*
+!/private-reference/.gitkeep
+
+# Game data and match recordings, wherever they end up
+*.dem
+*.bcast
+*.vpk
+console.log
+
+# Local tooling
+.claude/
+.obsidian/
