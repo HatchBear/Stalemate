@@ -12,7 +12,7 @@ Stalemate is not made by, affiliated with or endorsed by Valve.
 
 ## What you can do in the Alpha
 
-| | |
+| Feature | What it does |
 |---|---|
 | **Automatic match detection** | Stalemate notices when your match starts and ends from the game's own log. No buttons to press. You can also paste a match ID to follow any match |
 | **Scouting** | A card for every player: overall record, last 20 matches, rank, top heroes and games on their current hero. Players who opted out of public data show "No public data" |
