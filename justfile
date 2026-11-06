@@ -1,4 +1,4 @@
-# Stalemate task runner. See 15-tools-build-and-deploy.md.
+# Stalemate task runner. See design-docs/15-tools-build-and-deploy.md.
 
 default:
     @just --list
