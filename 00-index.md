@@ -54,8 +54,6 @@ It ships first as a Flatpak on KDE Plasma, then on Windows. It's built in Rust, 
 | 18 | [Risks and open questions](18-risks-and-open-questions.md) | Risk register, consolidated open questions |
 | 19 | [Decision log](19-decision-log.md) | Every decision from the design conversation |
 
-Related: the earlier [Feature Breakdown doc](https://claude.ai/artifact/KhQ45r61rjd9B4WTn64JJ7) summarizes the same features in plain language. Where the two differ, these docs win.
-
 ### Glossary
 
 These are internal working terms for the docs and code. They aren't user-facing labels; all UI wording is CD-13.

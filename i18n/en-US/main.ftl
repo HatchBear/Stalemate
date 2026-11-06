@@ -1,4 +1,4 @@
-# Stalemate UI strings, en-US (DATA-006, CD-13). Drafted by Claude for the author to review.
+# Stalemate UI strings, en-US (DATA-006, CD-13). Drafted for the author to review.
 #
 # Voice: plain English, short. Review lines use the CD-08 coach voice: a friend on your side,
 # casual second person, contractions, no profanity, 25 words or fewer per sentence. Numbers

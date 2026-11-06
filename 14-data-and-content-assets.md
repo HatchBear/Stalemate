@@ -198,7 +198,7 @@ Fixed technical instructions in every template:
 > Topic: CD-13 — Wording of all UI copy: labels, empty states, errors, setup instructions, and rules-only Review templates
 > Constraints from the project: en-US first [ASSUMPTION]. Overlay rows must fit OV-1 to OV-5 limits ([09](09-ui-window-and-overlay.md)). Template text must work without an LLM (FR-REV-015). Must include the "not affiliated with Valve" notice (FP-9).
 > Options to consider (optional): —
-> Decision: Claude drafts the en-US strings during implementation, and the author reviews them (2026-11-05).
+> Decision: The en-US strings are drafted during implementation, and the author reviews them (2026-11-05).
 
 ### DATA-008 fixtures
 
