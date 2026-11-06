@@ -43,10 +43,12 @@ $msi = "$out/stalemate-$Version-x64.msi"
 $zip = "$out/stalemate-$Version-windows-x64-portable.zip"
 Remove-Item -Force -ErrorAction SilentlyContinue $msi, $zip
 
-# ICE38, ICE43, ICE64 and ICE91 complain about per-user installs into the user profile.
+# No ICE validation for Alpha. In WiX 4/5 `wix build` does not run it and rejects -sice; that
+# switch belongs to `wix msi validate`. If validation is added later, suppress ICE38, ICE43,
+# ICE64 and ICE91 (they complain about per-user installs into the user profile) and keep it
+# non-fatal.
 wix build -arch x64 `
     -d "Version=$MsiVersion" -d "StageDir=$stage" `
-    -sice ICE38 -sice ICE43 -sice ICE64 -sice ICE91 `
     -o $msi "packaging/windows/stalemate.wxs"
 if ($LASTEXITCODE -ne 0) { throw "wix build failed" }
 
