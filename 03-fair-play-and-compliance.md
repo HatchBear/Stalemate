@@ -53,7 +53,7 @@ A field is Live-Safe if a player could see it in-game at that moment. Fields mar
 | LS-01 | Hero | Every player | Yes | Confirmed | Visible in-game |
 | LS-02 | Player display name | Every player | Yes | Confirmed | Visible in-game |
 | LS-03 | Team | Every player | Yes | Confirmed | Visible in-game |
-| LS-04 | Items owned, and item purchases and sales | Enemies | Yes | Confirmed | The [shop purchase log shows enemy purchases](https://mobalytics.gg/ja_jp/deadlock/guides/patch-notes) |
+| LS-04 | Items owned, and item purchases and sales | Every Player | Yes | Confirmed | The [shop purchase log shows enemy purchases](https://mobalytics.gg/ja_jp/deadlock/guides/patch-notes) |
 | LS-05 | Items owned | Every Player | Yes | Confirmed (T-007, DEC-048) | Scoreboard |
 | LS-06 | Kills, deaths, assists | Every player | Yes | Confirmed (T-007, DEC-048) | Scoreboard |
 | LS-07 | Level | Every player | Yes | Confirmed (T-007, DEC-048) | Scoreboard |
