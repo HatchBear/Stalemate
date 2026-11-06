@@ -501,11 +501,18 @@ fn demo_diagnostics(dir: &std::path::Path) -> SaveEnv {
 fn demo_dir() -> std::path::PathBuf {
     use std::sync::atomic::{AtomicU32, Ordering};
     static N: AtomicU32 = AtomicU32::new(0);
-    std::env::temp_dir().join(format!(
+    fresh_dir(std::env::temp_dir().join(format!(
         "stalemate-demo-{}-{}",
         std::process::id(),
         N.fetch_add(1, Ordering::Relaxed)
-    ))
+    )))
+}
+
+/// Process IDs get reused (Windows, Wine) and the temp dir persists, so a folder from an
+/// earlier run may be here. Every demo starts empty.
+fn fresh_dir(dir: std::path::PathBuf) -> std::path::PathBuf {
+    let _ = std::fs::remove_dir_all(&dir);
+    dir
 }
 
 pub struct Demo {
@@ -947,6 +954,21 @@ pub fn initial_apply(ui: &MainWindow, demo: &Demo) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fresh_dir_removes_a_stale_folder() {
+        let dir = std::env::temp_dir().join(format!(
+            "stalemate-test-fresh_dir_removes_a_stale_folder-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("junk"), b"old").unwrap();
+        let got = fresh_dir(dir.clone());
+        let gone = !dir.exists();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(got, dir);
+        assert!(gone, "stale folder must be removed");
+    }
 
     // TST-108 (the part the app owns): the record from a played match saves as one file, and the
     // leak scan refuses forbidden data. The scan and the zip are `stalemate_core::diagnostics`.
