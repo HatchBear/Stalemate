@@ -797,7 +797,8 @@ mod tests {
     #[test]
     fn rules_toml_matches_doc_14_block() {
         let doc = std::fs::read_to_string(repo_config().join("../14-data-and-content-assets.md"))
-            .unwrap();
+            .unwrap()
+            .replace("\r\n", "\n");
         let start = doc.find("### DATA-001").unwrap();
         let block = &doc[start..];
         let block = &block[block.find("```toml\n").unwrap() + 8..];
@@ -826,7 +827,9 @@ mod tests {
 
     #[test]
     fn missing_rules_value_fails_loudly() {
-        let text = std::fs::read_to_string(repo_config().join(RULES_FILE)).unwrap();
+        let text = std::fs::read_to_string(repo_config().join(RULES_FILE))
+            .unwrap()
+            .replace("\r\n", "\n");
         let text = text.replace("history_window          = 20\n", "");
         let err = Rules::from_toml_str(&text, Path::new("rules.toml")).unwrap_err();
         assert!(err.to_string().contains("history_window"), "{err}");
