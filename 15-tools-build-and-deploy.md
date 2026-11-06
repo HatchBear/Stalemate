@@ -108,10 +108,10 @@ modules:
 | Workflow | Trigger | Jobs |
 |---|---|---|
 | `ci.yml` | Every push and PR | `lint` (Linux); `test-linux`; `test-windows`; `assets-check` (TST-110) |
-| `flatpak.yml` | Push to `main`, tags | Build the Flatpak bundle in the KDE SDK container; upload as an artifact |
-| `windows.yml` | Push to `main`, tags | Build the MSI; upload as an artifact |
-| `linux-native.yml` | Push to `main`, tags | Build the binary in the oldest supported glibc container, then the `.deb`, `.rpm`, AppImage and tarball; install and launch smoke tests in Debian, Ubuntu, Fedora and Arch containers (TST-094); upload as artifacts (DEC-064) |
-| `release.yml` | Tag `v*` | Create a GitHub Release with the `.flatpak` bundle, the native Linux packages and the MSI; update the AUR `PKGBUILD` version and checksum; for beta and stable, open a PR to the Flathub repository |
+| `flatpak.yml` | Push to `main`, `v*` and week tags | Build the Flatpak bundle in the KDE SDK container; upload as an artifact |
+| `windows.yml` | Push to `main`, `v*` and week tags | Build the MSI; upload as an artifact |
+| `linux-native.yml` | Push to `main`, `v*` and week tags | Build the binary in the oldest supported glibc container, then the `.deb`, `.rpm`, AppImage and tarball; install and launch smoke tests in Debian, Ubuntu, Fedora and Arch containers (TST-094); upload as artifacts (DEC-064) |
+| `release.yml` | Tag `v*`, or a week tag such as `26w45a` (DEC-077) | Create a GitHub Release with the `.flatpak` bundle, the native Linux packages and the MSI; update the AUR `PKGBUILD` version and checksum; for beta and stable, open a PR to the Flathub repository |
 
 ### Versioning and channels
 
@@ -121,7 +121,7 @@ modules:
 | Beta | `0.5.x`–`0.9.x` | Flathub beta branch | MSI on GitHub Releases (prerelease) |
 | Stable | `1.0.0`+ | Flathub stable | MSI on GitHub Releases |
 
-Versions follow SemVer. Every release lists the game patch it was tested against.
+The app's own version follows SemVer and is what `stalemate --version`, the `.deb`, `.rpm` and MSI carry. Closed Alpha releases are named and tagged by year and ISO week plus `a` for Alpha: `26w45a` is 2026, week 45. A second build in the same week is `26w45a2`, then `26w45a3`. A week tag builds every package and makes a draft prerelease; it never reaches the AUR or Flathub (DEC-071, DEC-077). `v*` tags work as before. Every release lists the game patch it was tested against.
 
 ### Release checklist
 

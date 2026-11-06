@@ -3,7 +3,7 @@ name: release
 # to a GitHub Release: .flatpak, MSI and portable zip, .deb, .rpm, AppImage and tarball.
 on:
   push:
-    tags: ['v*']
+    tags: ['v*', '[0-9][0-9]w[0-9][0-9]a*']
 
 permissions:
   contents: write
@@ -13,10 +13,23 @@ jobs:
   # DEC-071: a v*-alpha.* tag is a closed Alpha for invited testers. It runs the check in
   # closed-Alpha mode (warning, not failure) and only ever makes a draft release.
   # Beta and stable tags still fail until mars is licensed.
+  # DEC-077: a week tag (26w45a, 26w45a2) is also a closed Alpha. The tag is validated first.
   release-check:
     runs-on: ubuntu-latest
+    outputs:
+      kind: ${{ steps.kind.outputs.kind }}
     steps:
       - uses: actions/checkout@v4
+      - name: Classify tag
+        id: kind
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! kind=$(bash scripts/release-kind.sh "$TAG"); then
+            echo "::error::Tag '$TAG' is not valid. Use vX.Y.Z[-suffix] or a week tag like 26w45a or 26w45a2 (^[0-9]{2}w[0-9]{2}a([0-9]+)?\$)."
+            exit 1
+          fi
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.98.1
@@ -26,12 +39,13 @@ jobs:
           sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxcb1-dev libgl1-mesa-dev libdbus-1-dev cmake protobuf-compiler libprotobuf-dev
       - name: Release check
         env:
-          TAG: ${{ github.ref_name }}
+          KIND: ${{ steps.kind.outputs.kind }}
         run: |
-          case "$TAG" in
-            v*-alpha.*) bash scripts/release-check.sh --closed-alpha ;;
-            *) bash scripts/release-check.sh ;;
-          esac
+          if [ "$KIND" = alpha ]; then
+            bash scripts/release-check.sh --closed-alpha
+          else
+            bash scripts/release-check.sh
+          fi
 
   flatpak:
     needs: release-check
@@ -50,7 +64,7 @@ jobs:
   # so closed Alpha tags never reach the AUR (DEC-071).
   aur:
     needs: release-check
-    if: ${{ !contains(github.ref_name, '-') }}
+    if: ${{ !contains(github.ref_name, '-') && needs.release-check.outputs.kind != 'alpha' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -66,7 +80,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: [flatpak, windows, linux-native, aur]
+    needs: [release-check, flatpak, windows, linux-native, aur]
     # aur is skipped for pre-release tags; the release still goes ahead.
     if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-latest
@@ -76,6 +90,20 @@ jobs:
         with:
           path: dist
       - run: find dist -type f
+      - name: Release name and body
+        id: meta
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          # App version comes from the workspace Cargo.toml, never hard-coded.
+          ver=$(awk '/^\[workspace\.package\]/{w=1;next} /^\[/{w=0} w && /^version[[:space:]]*=/{gsub(/[" ]/,"",$0); sub(/^version=/,"",$0); print; exit}' Cargo.toml)
+          [ -n "$ver" ] || { echo "::error::no workspace version in Cargo.toml"; exit 1; }
+          if [[ "$TAG" != v* ]]; then
+            echo "name=Stalemate $TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=" >> "$GITHUB_OUTPUT"
+          fi
+          printf 'body<<EOF\nRelease %s, app version %s\nEOF\n' "$TAG" "$ver" >> "$GITHUB_OUTPUT"
       - uses: softprops/action-gh-release@v2
         with:
           files: |
@@ -87,10 +115,13 @@ jobs:
             dist/**/*.AppImage
             dist/**/*.tar.gz
           # 0.x is Alpha or Beta (doc 15). Mark it as a prerelease. Stable is 1.0.0 and up.
-          prerelease: ${{ startsWith(github.ref_name, 'v0.') }}
+          # DEC-077: week tags are closed Alphas, so also a prerelease.
+          prerelease: ${{ startsWith(github.ref_name, 'v0.') || needs.release-check.outputs.kind == 'alpha' }}
+          name: ${{ steps.meta.outputs.name }}
+          body: ${{ steps.meta.outputs.body }}
           # DEC-071: closed Alpha tags make a draft, never a public release. The author shares
           # it with invited testers by hand.
-          draft: ${{ contains(github.ref_name, '-alpha.') }}
+          draft: ${{ needs.release-check.outputs.kind == 'alpha' }}
           generate_release_notes: true
           # TODO: release notes must name the tested game patch (release checklist, doc 15).
 
