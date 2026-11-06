@@ -78,9 +78,13 @@ jobs:
             packaging/aur/.SRCINFO
           include-hidden-files: true
           if-no-files-found: error
+          retention-days: 1
 
   release:
     needs: [release-check, flatpak, windows, linux-native, aur]
+    permissions:
+      contents: write
+      actions: write
     # aur is skipped for pre-release tags; the release still goes ahead.
     if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-latest
@@ -124,6 +128,15 @@ jobs:
           draft: ${{ needs.release-check.outputs.kind == 'alpha' }}
           generate_release_notes: true
           # TODO: release notes must name the tested game patch (release checklist, doc 15).
+      # DEC-081: the repo is public, so run artifacts are downloadable by any signed-in user.
+      # Once the files are on the draft, delete every artifact of this run.
+      - name: Delete run artifacts
+        if: ${{ success() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" --paginate --jq '.artifacts[].id' \
+            | xargs -r -I{} gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/{}"
 
   # TODO(Beta): for Beta and Stable tags, open a PR against the Flathub repository
   # (github.com/flathub/io.github.hatchbear.stalemate) with the new tag and commit.

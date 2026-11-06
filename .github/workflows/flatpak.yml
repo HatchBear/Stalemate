@@ -1,9 +1,8 @@
 name: flatpak
 on:
-  push:
-    branches: [main]
-    tags: ['v*', '[0-9][0-9]w[0-9][0-9]a*']
   workflow_call: {}
+  # Manual builds only. Packages are never built on push (DEC-081).
+  workflow_dispatch: {}
 
 jobs:
   # cargo-sources.json is generated from Cargo.lock. It is not committed.
@@ -20,6 +19,7 @@ jobs:
           name: flatpak-cargo-sources
           path: packaging/flatpak/cargo-sources.json
           if-no-files-found: error
+          retention-days: 1
 
   bundle:
     needs: sources
@@ -39,5 +39,11 @@ jobs:
           bundle: stalemate.flatpak
           manifest-path: packaging/flatpak/io.github.hatchbear.stalemate.yml
           cache-key: flatpak-builder-${{ github.sha }}
-          # The action uploads the bundle as an artifact named after `bundle`.
-          upload-artifact: true
+          # The action cannot set retention, so it does not upload (DEC-081).
+          upload-artifact: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stalemate.flatpak
+          path: stalemate.flatpak
+          retention-days: 1
+          if-no-files-found: error

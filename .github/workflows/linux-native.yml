@@ -2,10 +2,9 @@ name: linux-native
 # Native Linux packages besides the Flatpak (T-004a, DEC-064, NFR-PLAT-005, TST-094).
 # The binary is built once in Ubuntu 22.04 (glibc 2.35) so every package runs on older distros.
 on:
-  push:
-    branches: [main]
-    tags: ['v*', '[0-9][0-9]w[0-9][0-9]a*']
   workflow_call: {}
+  # Manual builds only. Packages are never built on push (DEC-081).
+  workflow_dispatch: {}
 
 env:
   CARGO_DEB_VERSION: 3.8.0
@@ -61,6 +60,7 @@ jobs:
             target/package/linux/*.AppImage
             target/package/linux/*.tar.gz
           if-no-files-found: error
+          retention-days: 1
 
   # Install each package in a clean container and start the app (TST-094).
   smoke:
