@@ -1,0 +1,138 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { Icon, IconKind } from "../icons.slint";
+import { AppState, Tr, DataKind, SoulKind } from "../types.slint";
+import { HText, BText, Panel, ViewFrame, StateBar, IconText } from "../widgets.slint";
+
+component ReviewRow inherits Rectangle {
+    in property <string> title;
+    in property <string> meta;
+    in property <bool> won;
+    in property <bool> selected;
+    callback clicked();
+    background: root.selected || area.has-hover || fs.has-focus ? Theme.raised : Theme.panel;
+    border-width: fs.has-focus ? 2px : 1px;
+    border-color: Theme.text;
+    min-height: 3.2rem;
+    accessible-role: button;
+    accessible-label: root.title + ", " + root.meta;
+    accessible-action-default => { root.clicked(); }
+    fs := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Return || e.text == " ") {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+        area := TouchArea {
+            clicked => {
+                fs.focus();
+                root.clicked();
+            }
+        }
+        HorizontalLayout {
+            padding: 0.5rem;
+            spacing: 0.5rem;
+            Icon { kind: root.won ? IconKind.pass : IconKind.fail; y: 0.15rem; }
+            VerticalLayout {
+                HText { text: root.title; wrap: no-wrap; overflow: elide; }
+                BText { text: root.meta; font-size: 0.8125rem; }
+            }
+        }
+    }
+}
+
+export component ReviewsView inherits ViewFrame {
+    property <bool> content-visible: AppState.reviews-state.kind == DataKind.loaded || AppState.reviews-state.kind == DataKind.stale;
+    VerticalLayout {
+        padding: 1rem;
+        spacing: 0.75rem;
+        HText { text: Tr.t("reviews-title"); font-size: 1.5rem; }
+        StateBar {
+            state: AppState.reviews-state;
+            empty-text: Tr.t("reviews-empty");
+            retry => { AppState.retry(3); }
+        }
+        if root.content-visible: HorizontalLayout {
+            spacing: 1rem;
+            ScrollView {
+                width: 17rem;
+                VerticalLayout {
+                    spacing: 0.4rem;
+                    alignment: start;
+                    for r[i] in AppState.review-rows: ReviewRow {
+                        title: r.title;
+                        meta: r.meta;
+                        won: r.won;
+                        selected: AppState.selected-review == i;
+                        clicked => {
+                            AppState.selected-review = i;
+                            AppState.select-review(i);
+                        }
+                    }
+                }
+            }
+            ScrollView {
+                horizontal-stretch: 1;
+                VerticalLayout {
+                    alignment: start;
+                    spacing: 0.75rem;
+                    if !AppState.report.has-report: Panel {
+                        VerticalLayout {
+                            padding: 1rem;
+                            IconText { kind: IconKind.info; text: Tr.t("reviews-pick"); }
+                        }
+                    }
+                    if AppState.report.has-report: VerticalLayout {
+                        spacing: 0.75rem;
+                        Panel {
+                            VerticalLayout {
+                                padding: 1rem;
+                                spacing: 0.5rem;
+                                HorizontalLayout {
+                                    spacing: 0.6rem;
+                                    Icon { kind: AppState.report.won ? IconKind.pass : IconKind.fail; size: 1.5rem; y: 0; }
+                                    HText { text: AppState.report.headline; font-size: 1.375rem; }
+                                }
+                                BText { text: AppState.report.duration; }
+                                BText { text: AppState.report.summary-line; }
+                            }
+                        }
+                        Panel {
+                            VerticalLayout {
+                                padding: 1rem;
+                                spacing: 0.4rem;
+                                HText { text: AppState.report.lane-title; font-size: 1.125rem; }
+                                HText { text: AppState.report.lane-lead; font-size: 1.25rem; }
+                                BText { text: AppState.report.lane-line; }
+                            }
+                        }
+                        Panel {
+                            VerticalLayout {
+                                padding: 1rem;
+                                spacing: 0.4rem;
+                                HText { text: Tr.t("report-souls-title"); font-size: 1.125rem; }
+                                for s in AppState.report.sources: HorizontalLayout {
+                                    spacing: 0.6rem;
+                                    Icon {
+                                        kind: s.kind == SoulKind.lane-troopers ? IconKind.lane-troopers : s.kind == SoulKind.neutral-camps ? IconKind.neutral-camps : s.kind == SoulKind.breakables ? IconKind.breakables : s.kind == SoulKind.urn ? IconKind.urn : IconKind.sinners-sacrifice;
+                                        y: 0;
+                                    }
+                                    BText { text: s.label; horizontal-stretch: 1; }
+                                    HText { text: s.souls; horizontal-alignment: right; }
+                                }
+                            }
+                        }
+                        Panel {
+                            VerticalLayout {
+                                padding: 0.75rem;
+                                IconText { kind: IconKind.info; text: Tr.t("report-stats-only"); }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

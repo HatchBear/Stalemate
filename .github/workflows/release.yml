@@ -1,0 +1,62 @@
+name: release
+# Skeleton (doc 15). Runs on a v* tag, builds both packages through the reusable
+# workflows, and attaches them to a GitHub Release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  # DEC-049: no public release while the build includes haste and mars (no licence).
+  release-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxcb1-dev libgl1-mesa-dev libdbus-1-dev cmake protobuf-compiler libprotobuf-dev
+      - run: bash scripts/release-check.sh
+
+  flatpak:
+    needs: release-check
+    uses: ./.github/workflows/flatpak.yml
+
+  windows:
+    needs: release-check
+    uses: ./.github/workflows/windows.yml
+
+  release:
+    needs: [flatpak, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - run: find dist -type f
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/**/*.flatpak
+            dist/**/*.msi
+            dist/**/*.exe
+          # 0.x is Alpha or Beta (doc 15). Mark it as a prerelease. Stable is 1.0.0 and up.
+          prerelease: ${{ startsWith(github.ref_name, 'v0.') }}
+          generate_release_notes: true
+          # TODO: release notes must name the tested game patch (release checklist, doc 15).
+
+  # TODO(Beta): for Beta and Stable tags, open a PR against the Flathub repository
+  # (github.com/flathub/io.github.hatchbear.stalemate) with the new tag and commit.
+  # Disabled until the Flathub submission exists.
+  flathub-pr:
+    if: false
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "TODO(Beta) open a Flathub PR"

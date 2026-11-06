@@ -1,0 +1,84 @@
+# Flatpak manifest for Stalemate (NFR-PLAT-001). Spec: doc 15.
+# Build with `just flatpak`, which generates cargo-sources.json first.
+app-id: io.github.hatchbear.stalemate # CD-01, reverse-DNS
+runtime: org.kde.Platform
+# OQ-17, checked against Flathub on 2026-11-05: 6.11 is the newest KDE branch.
+# Its freedesktop base is 25.08, so the matching Rust extension branch is 25.08.
+runtime-version: '6.11'
+sdk: org.kde.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: stalemate
+finish-args:
+  - --share=network # deadlock-api, Broadcast, LLM providers
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Read-only Steam paths: needed to read console.log and Steam config (RSK-15).
+  - --filesystem=~/.local/share/Steam:ro # native Steam
+  - --filesystem=~/.steam:ro
+  - --filesystem=~/.var/app/com.valvesoftware.Steam:ro # Flatpak Steam
+  # Steam libraries elsewhere: the user grants access through the FileChooser portal.
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/stalemate/cargo
+modules:
+  - name: stalemate
+    buildsystem: simple
+    build-commands:
+      - cargo --offline fetch --manifest-path Cargo.toml
+      # The workspace toolchain is pinned to the extension's rustc (DEC-054).
+      # valveprotos needs protoc at build time. The KDE 6.11 SDK has /usr/bin/protoc but not
+      # the google/protobuf include files, so protobuf-src builds protoc from source (needs cmake,
+      # which the SDK has).
+      - cargo --offline build --release --workspace --features stalemate-core/protobuf-src
+      - install -Dm755 target/release/stalemate /app/bin/stalemate
+      - install -Dm755 target/release/stalemate-overlay /app/bin/stalemate-overlay
+      # Placeholder icon (AST-ICON-001). T-049 swaps in the final art from
+      # assets/icon/ast-icon-001-app.svg; only the source path changes.
+      - install -Dm644 assets/placeholders/ast-icon-001-app.placeholder.svg /app/share/icons/hicolor/scalable/apps/io.github.hatchbear.stalemate.svg
+      - install -Dm644 packaging/flatpak/io.github.hatchbear.stalemate.desktop /app/share/applications/io.github.hatchbear.stalemate.desktop
+      - install -Dm644 packaging/flatpak/io.github.hatchbear.stalemate.metainfo.xml /app/share/metainfo/io.github.hatchbear.stalemate.metainfo.xml
+      # Runtime data. A directory that is empty in git (models, prompts) is skipped.
+      - mkdir -p /app/share/stalemate
+      - for d in config models prompts i18n; do if [ -d "$d" ]; then cp -r "$d" /app/share/stalemate/; fi; done
+    sources:
+      - type: dir
+        path: ../..
+        # Never let private-reference/ (Valve material) or local state reach a build.
+        skip:
+          - target
+          - build-dir
+          - .flatpak-builder
+          - .git
+          - .claude
+          - .obsidian
+          - private-reference
+          # Vendored haste ships only its crates (DEC-049); keep upstream extras out if they return.
+          - third_party/haste/examples
+          - third_party/haste/tools
+          - reviews
+          - 00-index.md
+          - 01-overview.md
+          - 02-requirements.md
+          - 03-fair-play-and-compliance.md
+          - 04-data-sources-and-ingestion.md
+          - 05-player-scouting.md
+          - 06-in-match-recommendations.md
+          - 07-post-match-review-engine.md
+          - 08-builds-import-and-builder.md
+          - 09-ui-window-and-overlay.md
+          - 10-technical-architecture.md
+          - 11-data-model.md
+          - 12-programs-and-code.md
+          - 13-art-and-asset-pipeline.md
+          - 14-data-and-content-assets.md
+          - 15-tools-build-and-deploy.md
+          - 16-testing-and-qa.md
+          - 17-roadmap.md
+          - 18-risks-and-open-questions.md
+          - 19-decision-log.md
+          - CLAUDE.md
+      - cargo-sources.json # from flatpak-cargo-generator.py

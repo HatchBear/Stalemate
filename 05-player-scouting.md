@@ -24,7 +24,7 @@ Specifies the scouting system: what each Scouting Card shows, how every value is
 |---|---|---|---|
 | Overall win/loss | FR-SCOUT-001 | API-03 | Sum of wins and matches across heroes |
 | Last 20 win/loss | FR-SCOUT-001 | API-01 | Wins in the 20 most recent matches |
-| Rank and MMR trend | FR-SCOUT-002 | API-02 | Current rank; least-squares slope of MMR over the last 20 ranked matches, shown as change per 10 matches |
+| Rank and MMR trend | FR-SCOUT-002 | API-02, API-01 | Current rank from API-02. Trend: least-squares slope of cumulative `ranked_delta` over the last 20 ranked matches in API-01, shown as change per 10 matches in rank progress points (DEC-051) |
 | Mains | FR-SCOUT-003 | API-03 | Top 5 heroes by matches, each with matches and win rate |
 | Experience on current hero | FR-SCOUT-004 | API-03 | Lifetime matches on the hero in the roster |
 | Build Profile | FR-SCOUT-005 | API-06, API-05 | See Build Profile below |

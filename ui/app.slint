@@ -1,0 +1,148 @@
+import { Theme } from "theme.slint";
+import { Icon, IconKind } from "icons.slint";
+import { AppState, Tr } from "types.slint";
+import { HText, BText, Panel, Btn, IconText } from "widgets.slint";
+import { HomeView } from "views/home.slint";
+import { ScoutingView } from "views/scouting.slint";
+import { LiveView } from "views/live.slint";
+import { ReviewsView } from "views/reviews.slint";
+import { BuildsView } from "views/builds.slint";
+import { SettingsView } from "views/settings.slint";
+import { SetupPanel } from "views/setup.slint";
+
+export * from "types.slint";
+export { Theme } from "theme.slint";
+
+component NavItem inherits Rectangle {
+    in property <string> label;
+    in property <bool> selected;
+    callback clicked();
+    min-height: 2.4rem;
+    background: root.selected || area.has-hover || fs.has-focus ? Theme.raised : Theme.panel;
+    border-width: fs.has-focus ? 2px : 1px;
+    border-color: Theme.text;
+    accessible-role: tab;
+    accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
+    fs := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Return || e.text == " ") {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+        area := TouchArea {
+            clicked => {
+                fs.focus();
+                root.clicked();
+            }
+        }
+        HorizontalLayout {
+            padding-left: 0.75rem;
+            padding-right: 0.5rem;
+            spacing: 0.5rem;
+            // A bar marks the selected item, so selection is not colour alone.
+            Rectangle {
+                width: 0.25rem;
+                background: root.selected ? Theme.text : transparent;
+            }
+            HText { text: root.label; vertical-alignment: center; font-size: 1.0625rem; wrap: no-wrap; }
+        }
+    }
+}
+
+export component MainWindow inherits Window {
+    title: Tr.t("app-title");
+    icon: @image-url("../assets/placeholders/ast-icon-002-app-128.placeholder.png");
+    preferred-width: 1100px;
+    preferred-height: 760px;
+    min-width: 640px;
+    min-height: 480px;
+    background: Theme.base;
+    // Text scale 75% to 200%: every size in the UI is in rem, so this scales it all.
+    default-font-size: 16px * AppState.text-scale-pct / 100;
+
+
+    HorizontalLayout {
+        // Sidebar
+        Rectangle {
+            width: 13rem;
+            background: Theme.base;
+            border-width: 0px;
+            Rectangle {
+                x: parent.width - 1px;
+                width: 1px;
+                background: Theme.text;
+            }
+            VerticalLayout {
+                padding: 0.75rem;
+                spacing: 0.4rem;
+                alignment: start;
+                HText { text: Tr.t("app-title"); font-size: 1.5rem; }
+                NavItem { label: Tr.t("nav-home"); selected: AppState.current-view == 0; clicked => { AppState.current-view = 0; } }
+                NavItem { label: Tr.t("nav-scouting"); selected: AppState.current-view == 1; clicked => { AppState.current-view = 1; } }
+                NavItem { label: Tr.t("nav-live"); selected: AppState.current-view == 2; clicked => { AppState.current-view = 2; } }
+                NavItem { label: Tr.t("nav-reviews"); selected: AppState.current-view == 3; clicked => { AppState.current-view = 3; } }
+                NavItem { label: Tr.t("nav-builds"); selected: AppState.current-view == 4; clicked => { AppState.current-view = 4; } }
+                NavItem { label: Tr.t("nav-settings"); selected: AppState.current-view == 5; clicked => { AppState.current-view = 5; } }
+                if AppState.demo: VerticalLayout {
+                    spacing: 0.4rem;
+                    padding-top: 1rem;
+                    // Secondary text, on the base background only.
+                    Text {
+                        text: Tr.t("demo-label");
+                        color: Theme.secondary;
+                        font-family: Theme.heading-font;
+                        font-size: 0.875rem;
+                    }
+                    Btn { label: Tr.t("demo-cycle-state"); clicked => { AppState.demo-cycle-state(); } }
+                    Text {
+                        text: AppState.demo-state-text;
+                        color: Theme.secondary;
+                        font-family: Theme.body-font;
+                        font-size: 0.8125rem;
+                        wrap: word-wrap;
+                    }
+                    Btn { label: Tr.t("demo-toggle-offline"); clicked => { AppState.demo-toggle-offline(); } }
+                }
+            }
+        }
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            // Offline banner: cached data stays visible below it.
+            if AppState.offline: Rectangle {
+                background: Theme.base;
+                border-width: 1px;
+                border-color: Theme.text;
+                height: self.preferred-height;
+                HorizontalLayout {
+                    padding: 0.6rem;
+                    spacing: 0.5rem;
+                    Icon { kind: IconKind.offline; tint: Theme.secondary; y: 0; }
+                    Text {
+                        text: Tr.t("offline-banner");
+                        color: Theme.secondary;
+                        font-family: Theme.body-font;
+                        font-size: 0.875rem;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+            if AppState.current-view == 0: HomeView { }
+            if AppState.current-view == 1: ScoutingView { }
+            if AppState.current-view == 2: LiveView { }
+            if AppState.current-view == 3: ReviewsView { }
+            if AppState.current-view == 4: BuildsView { }
+            if AppState.current-view == 5: SettingsView { }
+        }
+    }
+
+    if AppState.setup-open: SetupPanel {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+    }
+}

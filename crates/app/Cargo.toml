@@ -1,0 +1,29 @@
+[package]
+name = "stalemate-app"
+description = "Stalemate desktop app (Slint UI)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+build = "build.rs"
+
+[[bin]]
+name = "stalemate"
+path = "src/main.rs"
+
+[dependencies]
+stalemate-core.workspace = true
+slint.workspace = true
+anyhow.workspace = true
+tokio.workspace = true
+fluent-bundle = "0.16"
+unic-langid = "0.9"
+
+
+[build-dependencies]
+slint-build.workspace = true
+
+[dev-dependencies]
+regex.workspace = true
+i-slint-backend-testing = "1.18"

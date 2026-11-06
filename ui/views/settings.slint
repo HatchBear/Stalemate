@@ -1,0 +1,107 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { Icon, IconKind } from "../icons.slint";
+import { AppState, Tr } from "../types.slint";
+import { HText, BText, Panel, Btn, TextBox, ViewFrame, IconText } from "../widgets.slint";
+
+export component SettingsView inherits ViewFrame {
+    ScrollView {
+        VerticalLayout {
+            padding: 1rem;
+            spacing: 1rem;
+            alignment: start;
+            HText { text: Tr.t("settings-title"); font-size: 1.5rem; }
+
+            Panel {
+                VerticalLayout {
+                    padding: 1rem;
+                    spacing: 0.5rem;
+                    HText { text: Tr.t("settings-account-title"); font-size: 1.125rem; }
+                    BText { text: Tr.t("settings-account-help"); }
+                    HorizontalLayout {
+                        spacing: 0.75rem;
+                        TextBox {
+                            text <=> AppState.account-id;
+                            placeholder: Tr.t("settings-account-placeholder");
+                            label: Tr.t("settings-account-title");
+                            horizontal-stretch: 1;
+                            accepted(t) => { AppState.save-account-id(t); }
+                        }
+                        Btn { label: Tr.t("settings-account-save"); clicked => { AppState.save-account-id(AppState.account-id); } }
+                    }
+                    if AppState.account-id-error != "": IconText {
+                        kind: IconKind.error;
+                        tint: Theme.warn;
+                        text: AppState.account-id-error;
+                    }
+                }
+            }
+
+            Panel {
+                VerticalLayout {
+                    padding: 1rem;
+                    spacing: 0.5rem;
+                    HText { text: Tr.t("settings-llm-title"); font-size: 1.125rem; }
+                    HorizontalLayout {
+                        spacing: 0.75rem;
+                        HText { text: Tr.t("settings-llm-label"); vertical-alignment: center; }
+                        Rectangle {
+                            background: Theme.base;
+                            border-width: 1px;
+                            border-color: Theme.text;
+                            min-height: 2rem;
+                            min-width: 8rem;
+                            horizontal-stretch: 0;
+                            accessible-role: text;
+                            accessible-label: Tr.t("settings-llm-off");
+                            BText { text: Tr.t("settings-llm-off"); x: 0.6rem; vertical-alignment: center; wrap: no-wrap; }
+                        }
+                    }
+                    BText { text: Tr.t("settings-llm-note"); }
+                }
+            }
+
+            Panel {
+                VerticalLayout {
+                    padding: 1rem;
+                    spacing: 0.5rem;
+                    HText { text: Tr.t("settings-scale-title"); font-size: 1.125rem; }
+                    BText { text: Tr.t("settings-scale-help"); }
+                    HorizontalLayout {
+                        spacing: 0.4rem;
+                        alignment: start;
+                        for pct in [75, 100, 125, 150, 175, 200]: Btn {
+                            label: pct + "%";
+                            selected: AppState.text-scale-pct == pct;
+                            clicked => { AppState.set-text-scale(pct); }
+                        }
+                    }
+                }
+            }
+
+            Panel {
+                VerticalLayout {
+                    padding: 1rem;
+                    spacing: 0.5rem;
+                    HText { text: Tr.t("settings-privacy-title"); font-size: 1.125rem; }
+                    BText { text: Tr.t("settings-privacy-1"); }
+                    BText { text: Tr.t("settings-privacy-2"); }
+                    BText { text: Tr.t("settings-privacy-3"); }
+                }
+            }
+
+            Panel {
+                VerticalLayout {
+                    padding: 1rem;
+                    spacing: 0.5rem;
+                    HText { text: Tr.t("about-title"); font-size: 1.125rem; }
+                    BText { text: AppState.version-text; }
+                    BText { text: Tr.t("about-licence"); }
+                    // FP-9
+                    HText { text: Tr.t("about-not-affiliated"); }
+                    BText { text: Tr.t("about-fonts"); }
+                }
+            }
+        }
+    }
+}

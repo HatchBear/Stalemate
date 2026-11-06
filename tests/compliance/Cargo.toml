@@ -1,0 +1,17 @@
+[package]
+name = "stalemate-compliance"
+description = "Compliance tests: Live-Safe payload check over FX-BC fixtures (TST-030)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[features]
+# Replays recorded FX-BC fixtures from tests/fixtures/fx-bc/ (blocked on T-013 until they exist).
+fixtures = []
+
+[dev-dependencies]
+stalemate-core.workspace = true
+serde_json.workspace = true

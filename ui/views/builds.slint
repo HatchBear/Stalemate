@@ -1,0 +1,203 @@
+import { ScrollView, ComboBox } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { Icon, IconKind } from "../icons.slint";
+import { AppState, Tr, DataKind, BuildsTab } from "../types.slint";
+import { HText, BText, Panel, Btn, IconBtn, TextBox, ViewFrame, StateBar, IconText } from "../widgets.slint";
+
+component Library inherits VerticalLayout {
+    spacing: 0.5rem;
+    alignment: start;
+    property <bool> content-visible: AppState.builds-state.kind == DataKind.loaded || AppState.builds-state.kind == DataKind.stale;
+    StateBar {
+        state: AppState.builds-state;
+        empty-text: Tr.t("builds-empty");
+        retry => { AppState.retry(4); }
+    }
+    if root.content-visible: VerticalLayout {
+        spacing: 0.5rem;
+        if AppState.library.length == 0: Panel {
+            VerticalLayout {
+                padding: 0.75rem;
+                IconText { kind: IconKind.empty; text: Tr.t("builds-empty"); }
+            }
+        }
+        for b in AppState.library: Panel {
+            HorizontalLayout {
+                padding: 0.75rem;
+                spacing: 0.75rem;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    HText { text: b.name; }
+                    BText { text: b.hero; }
+                    BText { text: b.meta; font-size: 0.8125rem; }
+                    if b.flag != "": IconText { kind: IconKind.error; tint: Theme.warn; text: b.flag; }
+                }
+                if b.active: IconText {
+                    kind: IconKind.pass;
+                    text: Tr.t("builds-active");
+                    horizontal-stretch: 0;
+                }
+                if !b.active: VerticalLayout {
+                    alignment: center;
+                    Btn {
+                        label: Tr.t("builds-set-active");
+                        clicked => { AppState.set-active(b.id); }
+                    }
+                }
+            }
+        }
+    }
+}
+
+component Import inherits VerticalLayout {
+    spacing: 0.75rem;
+    alignment: start;
+    BText { text: Tr.t("import-intro"); }
+    HorizontalLayout {
+        spacing: 0.75rem;
+        HText { text: Tr.t("import-hero"); vertical-alignment: center; }
+        ComboBox {
+            model: AppState.heroes;
+            current-index <=> AppState.import-hero;
+            horizontal-stretch: 1;
+            accessible-label: Tr.t("import-hero");
+        }
+        Btn { label: Tr.t("import-search"); clicked => { AppState.search-community(AppState.import-hero); } }
+    }
+    StateBar {
+        state: AppState.community-state;
+        empty-text: Tr.t("import-empty");
+        retry => { AppState.search-community(AppState.import-hero); }
+    }
+    for r[i] in AppState.community-rows: Panel {
+        HorizontalLayout {
+            padding: 0.75rem;
+            spacing: 0.75rem;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                HText { text: r.name; }
+                BText { text: r.hero; }
+                BText { text: r.usage; font-size: 0.8125rem; }
+            }
+            Btn { label: Tr.t("import-button"); clicked => { AppState.import-community(i); } }
+        }
+    }
+}
+
+component Builder inherits VerticalLayout {
+    spacing: 0.75rem;
+    alignment: start;
+    HorizontalLayout {
+        spacing: 0.75rem;
+        HText { text: Tr.t("builder-hero"); vertical-alignment: center; }
+        ComboBox {
+            model: AppState.heroes;
+            current-index <=> AppState.builder-hero;
+            horizontal-stretch: 1;
+            accessible-label: Tr.t("builder-hero");
+        }
+    }
+    TextBox {
+        text <=> AppState.builder-name;
+        placeholder: Tr.t("builder-name-placeholder");
+        label: Tr.t("builder-name-placeholder");
+    }
+    for sec[si] in AppState.builder-sections: Panel {
+        background: AppState.builder-target == si ? Theme.raised : Theme.panel;
+        VerticalLayout {
+            padding: 0.75rem;
+            spacing: 0.4rem;
+            HorizontalLayout {
+                spacing: 0.5rem;
+                TextBox {
+                    text: sec.title;
+                    placeholder: Tr.t("builder-section-placeholder");
+                    label: Tr.t("builder-section-placeholder");
+                    horizontal-stretch: 1;
+                    edited(t) => { AppState.builder-rename-section(si, t); }
+                }
+                Btn {
+                    label: AppState.builder-target == si ? Tr.t("builder-target-on") : Tr.t("builder-target");
+                    selected: AppState.builder-target == si;
+                    clicked => { AppState.builder-target = si; }
+                }
+            }
+            if sec.items.length == 0: BText { text: Tr.t("builder-section-empty"); }
+            for item[ii] in sec.items: HorizontalLayout {
+                spacing: 0.4rem;
+                BText { text: item; horizontal-stretch: 1; vertical-alignment: center; }
+                IconBtn { kind: IconKind.up; label: Tr.t("builder-move-up"); clicked => { AppState.builder-move-item(si, ii, -1); } }
+                IconBtn { kind: IconKind.down; label: Tr.t("builder-move-down"); clicked => { AppState.builder-move-item(si, ii, 1); } }
+                IconBtn { kind: IconKind.remove; label: Tr.t("builder-remove"); clicked => { AppState.builder-remove-item(si, ii); } }
+            }
+        }
+    }
+    HorizontalLayout {
+        alignment: start;
+        Btn { label: Tr.t("builder-add-section"); clicked => { AppState.builder-add-section(); } }
+    }
+
+    Panel {
+        VerticalLayout {
+            padding: 0.75rem;
+            spacing: 0.4rem;
+            HText { text: Tr.t("builder-search-title"); }
+            TextBox {
+                placeholder: Tr.t("builder-search-placeholder");
+                label: Tr.t("builder-search-placeholder");
+                edited(t) => { AppState.builder-search(t); }
+                accepted(t) => { AppState.builder-search(t); }
+            }
+            for name[i] in AppState.builder-results: HorizontalLayout {
+                spacing: 0.4rem;
+                BText { text: name; horizontal-stretch: 1; vertical-alignment: center; }
+                IconBtn { kind: IconKind.plus; label: Tr.t("builder-add-item"); clicked => { AppState.builder-add-item(i); } }
+            }
+        }
+    }
+
+    HText { text: Tr.t("builder-ability-title"); }
+    TextBox {
+        text <=> AppState.builder-ability;
+        placeholder: Tr.t("builder-ability-placeholder");
+        label: Tr.t("builder-ability-title");
+    }
+    if AppState.builder-error != "": IconText { kind: IconKind.error; tint: Theme.warn; text: AppState.builder-error; }
+    HorizontalLayout {
+        alignment: start;
+        Btn { label: Tr.t("builder-save"); clicked => { AppState.builder-save(); } }
+    }
+}
+
+export component BuildsView inherits ViewFrame {
+    ScrollView {
+        VerticalLayout {
+            padding: 1rem;
+            spacing: 0.75rem;
+            alignment: start;
+            HText { text: Tr.t("builds-title"); font-size: 1.5rem; }
+            HorizontalLayout {
+                spacing: 0.5rem;
+                alignment: start;
+                Btn {
+                    label: Tr.t("builds-tab-library");
+                    selected: AppState.builds-tab == BuildsTab.library;
+                    clicked => { AppState.builds-tab = BuildsTab.library; }
+                }
+                Btn {
+                    label: Tr.t("builds-tab-import");
+                    selected: AppState.builds-tab == BuildsTab.community;
+                    clicked => { AppState.builds-tab = BuildsTab.community; }
+                }
+                Btn {
+                    label: Tr.t("builds-tab-builder");
+                    selected: AppState.builds-tab == BuildsTab.builder;
+                    clicked => { AppState.builds-tab = BuildsTab.builder; }
+                }
+            }
+            if AppState.builds-tab == BuildsTab.library: Library { }
+            if AppState.builds-tab == BuildsTab.community: Import { }
+            if AppState.builds-tab == BuildsTab.builder: Builder { }
+        }
+    }
+}

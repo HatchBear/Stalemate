@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Stalemate
+GenericName=Deadlock companion
+Comment=Scouting, live recommendations and post-match review for Deadlock
+Exec=stalemate
+Icon=io.github.hatchbear.stalemate
+Terminal=false
+Categories=Game;Utility;
+Keywords=Deadlock;Valve;scouting;overlay;
+StartupNotify=true

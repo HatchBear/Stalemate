@@ -1,0 +1,92 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxcb1-dev libgl1-mesa-dev libdbus-1-dev cmake protobuf-compiler libprotobuf-dev
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check -p stalemate-core -p stalemate-app -p stalemate-overlay -p stalemate-model-trainer -p stalemate-fixture-recorder -p stalemate-compliance
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  test-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxcb1-dev libgl1-mesa-dev libdbus-1-dev cmake protobuf-compiler libprotobuf-dev
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+      - uses: Swatinem/rust-cache@v2
+      # Unit, fixture and compliance tests, including the Live-Safe payload check (TST-030).
+      - run: cargo test --workspace
+      - run: cargo test -p stalemate-core --features fixtures
+      # TST-030 payload check. Skips with a message until FX-BC fixtures exist (T-013).
+      - run: cargo test -p stalemate-compliance --features fixtures -- --nocapture
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: .NET tests
+        run: |
+          if ls dotnet/*.sln dotnet/*.csproj dotnet/*/*.csproj >/dev/null 2>&1; then dotnet test dotnet/; else echo "no .NET projects yet"; fi
+
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace
+      - run: cargo test -p stalemate-core --features fixtures
+      - run: cargo test -p stalemate-compliance --features fixtures
+
+  licences:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check licenses bans sources
+
+  compliance:
+    # Fair play (TST-030), hard-coded IDs (TST-017). Binaries are checked for forbidden imports.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxcb1-dev libgl1-mesa-dev libdbus-1-dev cmake protobuf-compiler libprotobuf-dev
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --workspace
+      - run: bash scripts/fair-play-check.sh --require-binaries
+      - run: sh scripts/no-hardcoded-ids.sh
+
+  assets-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Asset check (TST-110)
+        run: sh scripts/assets-check.sh

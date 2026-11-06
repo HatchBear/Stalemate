@@ -1,0 +1,33 @@
+name: windows
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_call: {}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.98.1
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+      # valveprotos needs protoc at build time (DEC-049).
+      - run: choco install protoc -y
+      - run: cargo build --release --workspace
+      - run: cargo test --workspace
+      - name: Fair-play symbol check on the Windows binaries (TST-030)
+        shell: bash
+        run: bash scripts/fair-play-check.sh --require-binaries
+      # TODO(T-028): publish the .NET fallback parser (PRG-21, Beta), build the WiX MSI
+      # (`just win-installer`), and upload it. Until then this job uploads the bare binaries.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stalemate-windows-binaries
+          path: |
+            target/release/stalemate.exe
+            target/release/stalemate-overlay.exe
+          if-no-files-found: error

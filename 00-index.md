@@ -64,8 +64,8 @@ These are internal working terms for the docs and code. They aren't user-facing 
 |---|---|
 | **Account ID** | A player's 32-bit Steam account ID (SteamID3 number), the key deadlock-api uses for players |
 | **Adjusted win rate** | deadlock-api's item win rate re-weighted by net worth at time of purchase, so items bought by players who were already ahead aren't overrated |
-| **Broadcast** | Valve's public spectator stream of a live match, running 60–90 s behind real time |
-| **Broadcast delay** | The 60–90 s gap between game time and Broadcast time. All live features are designed for it |
+| **Broadcast** | Valve's public spectator stream of a live match, running about 25 s behind real time (measured in T-008, DEC-050) |
+| **Broadcast delay** | The gap of about 25 s between game time and Broadcast time (DEC-050). All live features are designed for it |
 | **Build Check** | The in-match feature that suggests swapping items in your active build plan for counter items |
 | **Build Matcher** | The component that guesses which build an enemy is following from their items |
 | **Build plan** | Your intended build for the current match: imported, built manually, or read from your selected in-game build |

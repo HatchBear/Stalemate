@@ -1,0 +1,11 @@
+[package]
+name = "stalemate-fixture-recorder"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "stalemate-fixture-recorder"
+path = "src/main.rs"

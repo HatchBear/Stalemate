@@ -1,0 +1,197 @@
+// Types and the AppState global. Rust fills AppState through `crates/app/src/ui_map.rs`.
+// No user-facing text lives in .slint files (DATA-006): labels come from `Tr.t(key)`,
+// and values built from data come pre-formatted from Rust.
+
+export enum Check { pending, pass, fail }
+export enum DataKind { loaded, loading, empty, stale, error }
+export enum TeamSide { amber, sapphire }
+export enum CardKind { data, no-public-data, loading, hero-only }
+export enum LogAction { buy, sell, upgrade }
+export enum SoulKind { lane-troopers, neutral-camps, breakables, urn, sinners-sacrifice }
+export enum BuildsTab { library, community, builder }
+
+export struct StateUi {
+    kind: DataKind,
+    // Pre-formatted for stale (age) and error (source). Empty otherwise.
+    message: string,
+}
+
+export struct CheckUi {
+    label: string,
+    detail: string,
+    state: Check,
+}
+
+export struct LastMatchUi {
+    has-match: bool,
+    won: bool,
+    headline: string,
+    detail: string,
+}
+
+export struct MainHeroUi {
+    hero: string,
+    record: string,
+}
+
+export struct ScoutCardUi {
+    kind: CardKind,
+    hero: string,
+    name: string,
+    you: bool,
+    overall: string,
+    last-label: string,
+    last: string,
+    rank: string,
+    trend: string,
+    on-hero: string,
+    mains: [MainHeroUi],
+}
+
+export struct EnemyRowUi {
+    hero: string,
+    name: string,
+    items-text: string,
+    item-icons: [image],
+    kda: string,
+    level: string,
+}
+
+export struct LogRowUi {
+    time: string,
+    player: string,
+    item: string,
+    action: LogAction,
+    action-label: string,
+}
+
+export struct ReviewRowUi {
+    title: string,
+    won: bool,
+    meta: string,
+}
+
+export struct SoulRowUi {
+    kind: SoulKind,
+    label: string,
+    souls: string,
+}
+
+export struct ReportUi {
+    has-report: bool,
+    won: bool,
+    headline: string,
+    duration: string,
+    lane-title: string,
+    lane-lead: string,
+    lane-line: string,
+    summary-line: string,
+    sources: [SoulRowUi],
+}
+
+export struct BuildRowUi {
+    id: string,
+    name: string,
+    hero: string,
+    meta: string,
+    active: bool,
+    flag: string,
+}
+
+export struct CommunityRowUi {
+    name: string,
+    hero: string,
+    usage: string,
+}
+
+export struct SectionUi {
+    title: string,
+    items: [string],
+}
+
+export global Tr {
+    // Looks a key up in i18n/en-US/main.ftl. Missing keys return the key itself.
+    pure callback t(string) -> string;
+}
+
+export global AppState {
+    // Shell
+    in-out property <int> current-view: 0;
+    in property <bool> demo: false;
+    in property <bool> offline: false;
+    in property <bool> reduce-motion: false;
+    in-out property <int> text-scale-pct: 100;
+
+    // Home and first-run setup
+    in property <[CheckUi]> checks;
+    in property <LastMatchUi> last-match;
+    in-out property <bool> setup-open: false;
+    in property <Check> setup-result: Check.pending;
+    in property <string> setup-result-detail;
+    callback check-again();
+
+    // Scouting (FP-10: cards only after the game has started)
+    in property <bool> scouting-visible: false;
+    in property <StateUi> scouting-state: { kind: DataKind.loaded, message: "" };
+    in property <TeamSide> your-side: TeamSide.amber;
+    in property <string> your-team-heading;
+    in property <string> enemy-team-heading;
+    in property <[ScoutCardUi]> your-cards;
+    in property <[ScoutCardUi]> enemy-cards;
+
+    // Live
+    in property <StateUi> live-state: { kind: DataKind.loaded, message: "" };
+    in property <string> delay-text;
+    in property <bool> delay-known: false;
+    in property <bool> delay-stale: false;
+    in property <bool> show-kda: false;
+    in property <bool> show-level: false;
+    in property <[EnemyRowUi]> enemy-rows;
+    in property <[LogRowUi]> log-rows;
+
+    // Reviews
+    in property <StateUi> reviews-state: { kind: DataKind.loaded, message: "" };
+    in property <[ReviewRowUi]> review-rows;
+    in-out property <int> selected-review: -1;
+    in property <ReportUi> report;
+    callback select-review(int);
+
+    // Builds
+    in-out property <BuildsTab> builds-tab: BuildsTab.library;
+    in property <StateUi> builds-state: { kind: DataKind.loaded, message: "" };
+    in property <[BuildRowUi]> library;
+    callback set-active(string);
+    in property <[string]> heroes;
+    in-out property <int> import-hero: 0;
+    in property <StateUi> community-state: { kind: DataKind.empty, message: "" };
+    in property <[CommunityRowUi]> community-rows;
+    callback search-community(int);
+    callback import-community(int);
+    in-out property <int> builder-hero: 0;
+    in-out property <string> builder-name;
+    in property <[SectionUi]> builder-sections;
+    in-out property <int> builder-target: 0;
+    in-out property <string> builder-ability;
+    in property <[string]> builder-results;
+    in property <string> builder-error;
+    callback builder-search(string);
+    callback builder-add-section();
+    callback builder-rename-section(int, string);
+    callback builder-add-item(int);
+    callback builder-move-item(int, int, int);
+    callback builder-remove-item(int, int);
+    callback builder-save();
+
+    // Settings
+    in-out property <string> account-id;
+    in property <string> account-id-error;
+    in property <string> version-text;
+    callback save-account-id(string);
+    callback set-text-scale(int);
+
+    // Shared
+    callback retry(int);
+    callback demo-cycle-state();
+    callback demo-toggle-offline();
+    in property <string> demo-state-text;
+}

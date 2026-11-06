@@ -54,15 +54,15 @@ A field is Live-Safe if a player could see it in-game at that moment. Fields mar
 | LS-02 | Player display name | Every player | Yes | Confirmed | Visible in-game |
 | LS-03 | Team | Every player | Yes | Confirmed | Visible in-game |
 | LS-04 | Items owned, and item purchases and sales | Enemies | Yes | Confirmed | The [shop purchase log shows enemy purchases](https://mobalytics.gg/ja_jp/deadlock/guides/patch-notes) |
-| LS-05 | Items owned | Allies | Yes | Verify | Scoreboard |
-| LS-06 | Kills, deaths, assists | Every player | Yes | Verify | Scoreboard |
-| LS-07 | Level | Every player | Yes | Verify | Scoreboard |
-| LS-08 | Souls or net worth | Enemies | No until verified | Verify | Scoreboard |
-| LS-09 | Assigned lane | Lane opponents | Yes | Verify | Seen in lane |
+| LS-05 | Items owned | Allies | Yes | Confirmed (T-007, DEC-048) | Scoreboard |
+| LS-06 | Kills, deaths, assists | Every player | Yes | Confirmed (T-007, DEC-048) | Scoreboard |
+| LS-07 | Level | Every player | Yes | Confirmed (T-007, DEC-048) | Scoreboard |
+| LS-08 | Souls or net worth | Enemies | Yes | Confirmed (T-007, DEC-048) | Scoreboard |
+| LS-09 | Assigned lane | Every player | Yes | Confirmed (T-007, DEC-048) | Scoreboard |
 | LS-10 | Match clock | Match | Yes | Confirmed | HUD |
-| LS-11 | Objectives destroyed (guardians, walkers, shrines, patron) | Match | Yes | Verify | HUD and map |
+| LS-11 | Objectives destroyed (guardians, walkers, shrines, patron) | Match | Yes | Confirmed (T-007, DEC-048) | HUD and map |
 | LS-12 | Own souls, items, abilities, cooldowns, health | User | Yes | Confirmed | User's own HUD |
-| LS-13 | Own team's flex slot unlock state | User's team | Yes | Verify | HUD |
+| LS-13 | Own team's flex slot unlock state | User's team | Yes | Confirmed (T-007, DEC-048) | HUD |
 | LS-14 | Historical public stats from deadlock-api | Every player | Yes | Confirmed | Public data, also shown by existing overlays |
 
 **Never Live-Safe** (used only in Review Mode):
@@ -71,7 +71,6 @@ A field is Live-Safe if a player could see it in-game at that moment. Fields mar
 - Enemy health, ability cooldowns and ultimate state.
 - Enemy team chat.
 - The build an enemy selected at game start.
-- Enemy souls, until LS-08 is verified.
 - Any data on unseen enemies beyond LS-01 to LS-07.
 
 ### Enforcement
@@ -100,14 +99,14 @@ A field is Live-Safe if a player could see it in-game at that moment. Fields mar
 
 ## Open Questions
 
-- OQ-04: Which scoreboard fields are visible in-game (LS-05 to LS-09, LS-11, LS-13)?
-- OQ-02: Is there a way to locate the Broadcast for a match without the app running its own Valve protocol client (RSK-11)?
+- OQ-04 (resolved): All of LS-05 to LS-09, LS-11 and LS-13 are visible in-game. Lanes are visible for every player (DEC-048).
+- OQ-02 (resolved): Yes. deadlock-api's live URL endpoints locate the Broadcast, so the app runs no Valve protocol client (DEC-049).
 - OQ-10 (deferred): Does a paid tier conflict with SSA §2.A's non-commercial license? Not needed for v1 (DEC-018). Get legal review before any paid tier.
 - OQ-19 (deferred): How long is Deadlock's pre-game hero-swap phase, and does it close before the game clock starts? Secondary sources say each player gets one swap and the phase closes before the game starts, but give no duration. The author has no ranked access, so a Beta tester with ranked access checks it (DEC-047). FP-10 is safe without the answer.
 
 ## Acceptance Criteria
 
-- [ ] Every LS field marked Verify has been checked in-game and set to Yes or No.
+- [x] Every LS field marked Verify has been checked in-game and set to Yes or No (2026-11-05, DEC-048).
 - [ ] TST-030 passes: no non-Live-Safe field appears in any Live Mode payload across 20 recorded matches.
 - [ ] Code review confirms no memory access, injection, hooking, packet capture or input APIs are linked.
 - [ ] The privacy policy is published at a stable URL before v1.

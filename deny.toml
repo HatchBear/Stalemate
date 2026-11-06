@@ -1,0 +1,89 @@
+# cargo-deny: GPL-3.0-compatible licences only.
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "CC0-1.0",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Unlicense",
+    "GPL-3.0-only",
+    "GPL-3.0-or-later",
+    "OpenSSL",
+    "BSL-1.0",
+    "CDLA-Permissive-2.0", # webpki-root-certs (CA bundle data), permissive and GPL-3.0 compatible
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "warn"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+# DEC-049: haste pulls these two, pinned by rev in third_party/haste/Cargo.toml.
+allow-git = [
+    "https://github.com/blukai/mars",
+    "https://github.com/blukai/valveprotos-rs",
+]
+
+# haste (vendored) and valveprotos are BSD-3-Clause; valveprotos has no licence field.
+[[licenses.clarify]]
+crate = "valveprotos"
+expression = "BSD-3-Clause"
+license-files = [{ path = "license.txt", hash = 0 }]
+
+# DEC-049 exception: mars (blukai/mars) and its workspace crates that haste uses have no
+# licence. Local and CI builds only; no public release until mars is licensed.
+# scripts/release-check.sh fails a release that still contains them. Scoped to these five
+# crates at this exact git source. Do not widen it, and do not use it for anything else.
+[[licenses.clarify]]
+crate = "mars"
+expression = "LicenseRef-mars-unlicensed"
+license-files = []
+
+[[licenses.clarify]]
+crate = "bitbuf"
+expression = "LicenseRef-mars-unlicensed"
+license-files = []
+
+[[licenses.clarify]]
+crate = "fxhash"
+expression = "LicenseRef-mars-unlicensed"
+license-files = []
+
+[[licenses.clarify]]
+crate = "nohash"
+expression = "LicenseRef-mars-unlicensed"
+license-files = []
+
+[[licenses.clarify]]
+crate = "varint"
+expression = "LicenseRef-mars-unlicensed"
+license-files = []
+
+[[licenses.exceptions]]
+crate = "mars"
+allow = ["LicenseRef-mars-unlicensed"]
+
+[[licenses.exceptions]]
+crate = "bitbuf"
+allow = ["LicenseRef-mars-unlicensed"]
+
+[[licenses.exceptions]]
+crate = "fxhash"
+allow = ["LicenseRef-mars-unlicensed"]
+
+[[licenses.exceptions]]
+crate = "nohash"
+allow = ["LicenseRef-mars-unlicensed"]
+
+[[licenses.exceptions]]
+crate = "varint"
+allow = ["LicenseRef-mars-unlicensed"]

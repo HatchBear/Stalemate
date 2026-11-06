@@ -1,0 +1,30 @@
+import "../assets/fonts/jost/Jost-Variable.ttf";
+import "../assets/fonts/noto-sans/NotoSans-Variable.ttf";
+
+// Palette from doc 09 CD-03 (DEC-046). Do not add colours here without a decision-log entry.
+export global Theme {
+    // Base and surfaces
+    out property <color> base: #222021;
+    out property <color> panel: #2f4442;
+    out property <color> raised: #3f5d4d;
+    // Secondary text: use on `base` only (4.83:1).
+    out property <color> secondary: #72947f;
+    // All primary text and all borders.
+    out property <color> text: #efdebf;
+    // Error and the warning tiers.
+    out property <color> warn: #ee5945;
+    // Teams
+    out property <color> amber: #D4860B;
+    out property <color> amber-text: #201500;
+    out property <color> amber-light: #FBDCA0;
+    out property <color> sapphire: #4D75C3;
+    out property <color> sapphire-text: #FFFFFF;
+    out property <color> sapphire-light: #BDCBFF;
+
+    // Fonts (CD-04): Jost for headings and labels, Noto Sans for body text and numbers.
+    out property <string> heading-font: "Jost";
+    out property <string> body-font: "Noto Sans";
+
+    // Motion (CD-06): 150 ms or less. Zero when reduce-motion is on.
+    in-out property <duration> motion: 120ms;
+}

@@ -44,10 +44,17 @@ players_per_sec     = 80      # 80% of 100
 other_per_min       = 60
 history_ttl_s       = 21600
 analytics_ttl_s     = 86400
+metadata_bulk_per_min = 24    # 80% of API-05 bulk 30/min (DEC-053)
+rank_per_min          = 16    # 80% of API-02 20/min (DEC-053)
+timeout_cooldown_s    = 300   # no same-query retry after a 504
+busy_retry_default_s  = 30    # when a 503 or 429 has no Retry-After
+assets_ttl_s          = -1    # until the patch changes
+client_versions_ttl_s = 3600  # patch check interval
+metadata_ttl_s        = 31536000  # matches are immutable
 
 [broadcast]
 backoff_s           = [2, 4, 8, 16, 32]
-stale_delay_s       = 120
+stale_delay_s       = 60      # DEC-050
 
 [scouting]
 swap_closed_after_s     = 0      # scouting stays hidden until game time passes this. Raise it if a ranked tester finds the swap phase overlaps game time (DEC-047)
@@ -156,9 +163,9 @@ requires    = []      # objective IDs; VERIFY against the current patch
 
 ```toml
 # Fields from 03-fair-play-and-compliance.md. Add a field only after it's verified in-game (T-007).
-enabled = ["Ls02Name"]   # LS-01, LS-03, LS-04, LS-10, LS-12 and LS-14 are always on (confirmed)
-# Pending verification: Ls05AllyItems, Ls06Kda, Ls07Level, Ls09Lane, Ls11Objectives, Ls13Flex
-# LS-08 enemy souls stays off until verified.
+enabled = ["Ls02Name", "Ls05AllyItems", "Ls06Kda", "Ls07Level", "Ls08EnemySouls", "Ls09Lane", "Ls11Objectives", "Ls13Flex"]
+# LS-01, LS-03, LS-04, LS-10, LS-12 and LS-14 are always on (confirmed).
+# LS-05 to LS-09, LS-11 and LS-13 were verified in-game by the author (T-007, DEC-048). Each can be switched off.
 ```
 
 ### DATA-004 model file
@@ -197,7 +204,7 @@ Fixed technical instructions in every template:
 
 | Set | Contents | Minimum | Source |
 |---|---|---|---|
-| FX-BC | Broadcast recordings of the developer's own matches | 20 matches | PRG-27 |
+| FX-BC | The developer's own matches as normalized `ParserEvent` lines (`tests/fixtures/fx-bc/<match>/events.jsonl` plus `meta.json`), chat stripped. Raw `.bcast` files are never committed (DEC-056) | 20 matches | PRG-27 |
 | FX-DEM | Replay `.dem` files of the same matches | 5 matches | Developer |
 | FX-API | Recorded deadlock-api responses for those matches | All calls made | PRG-27 |
 | FX-LABEL | Hand-labeled Build Profiles (TST-024) and build matches at 15:00 (TST-042) | 30 profiles, 100 matches | Developer |

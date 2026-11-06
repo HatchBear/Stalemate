@@ -1,0 +1,126 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { Icon, IconKind } from "../icons.slint";
+import { AppState, Tr, TeamSide, CardKind, ScoutCardUi, DataKind } from "../types.slint";
+import { HText, BText, Panel, ViewFrame, StateBar, IconText } from "../widgets.slint";
+
+component Stat inherits VerticalLayout {
+    in property <string> label;
+    in property <string> value;
+    horizontal-stretch: 1;
+    preferred-width: 1px;
+    HText { text: root.label; font-size: 0.8125rem; }
+    BText { text: root.value; }
+}
+
+component TeamChip inherits Rectangle {
+    in property <TeamSide> side;
+    in property <string> text;
+    background: side == TeamSide.amber ? Theme.amber : Theme.sapphire;
+    border-width: 1px;
+    border-color: Theme.text;
+    HorizontalLayout {
+        padding: 0.4rem;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+        HText {
+            text: root.text;
+            color: side == TeamSide.amber ? Theme.amber-text : Theme.sapphire-text;
+            font-size: 1.0625rem;
+        }
+    }
+}
+
+component ScoutCard inherits Panel {
+    in property <ScoutCardUi> card;
+    in property <TeamSide> side;
+    VerticalLayout {
+        padding: 0.75rem;
+        spacing: 0.5rem;
+        HorizontalLayout {
+            spacing: 0.6rem;
+            // Team stripe in the lighter tone of the side's colour.
+            Rectangle {
+                width: 0.3rem;
+                background: root.side == TeamSide.amber ? Theme.amber-light : Theme.sapphire-light;
+            }
+            HText { text: root.card.hero; font-size: 1.125rem; }
+            BText { text: root.card.name; vertical-alignment: center; horizontal-stretch: 1; }
+            if root.card.you: HText { text: Tr.t("card-you"); vertical-alignment: center; }
+        }
+        if root.card.kind == CardKind.no-public-data: IconText {
+            kind: IconKind.empty;
+            text: Tr.t("no-public-data");
+        }
+        if root.card.kind == CardKind.loading: IconText {
+            kind: IconKind.loading;
+            text: Tr.t("card-loading");
+        }
+        if root.card.kind == CardKind.data: VerticalLayout {
+            spacing: 0.5rem;
+            HorizontalLayout {
+                spacing: 0.75rem;
+                Stat { label: Tr.t("stat-overall"); value: root.card.overall; }
+                Stat { label: root.card.last-label; value: root.card.last; }
+                Stat { label: Tr.t("stat-rank"); value: root.card.rank; }
+            }
+            HorizontalLayout {
+                spacing: 0.75rem;
+                Stat { label: Tr.t("stat-trend"); value: root.card.trend; }
+                Stat { label: Tr.t("stat-on-hero"); value: root.card.on-hero; }
+                Rectangle { horizontal-stretch: 1; }
+            }
+            HText { text: Tr.t("stat-mains"); font-size: 0.8125rem; }
+            HorizontalLayout {
+                spacing: 0.75rem;
+                for m in root.card.mains: VerticalLayout {
+                    horizontal-stretch: 1;
+                    preferred-width: 1px;
+                    HText { text: m.hero; font-size: 0.875rem; }
+                    BText { text: m.record; font-size: 0.8125rem; }
+                }
+            }
+        }
+    }
+}
+
+export component ScoutingView inherits ViewFrame {
+    property <bool> content-visible: AppState.scouting-state.kind == DataKind.loaded || AppState.scouting-state.kind == DataKind.stale;
+    ScrollView {
+        VerticalLayout {
+            padding: 1rem;
+            spacing: 0.75rem;
+            alignment: start;
+            HText { text: Tr.t("scouting-title"); font-size: 1.5rem; }
+
+            // FP-10: nothing is shown until the game has started.
+            if !AppState.scouting-visible: Panel {
+                VerticalLayout {
+                    padding: 1rem;
+                    IconText { kind: IconKind.info; text: Tr.t("scouting-hidden"); }
+                }
+            }
+            if AppState.scouting-visible: VerticalLayout {
+                spacing: 0.75rem;
+                StateBar {
+                    state: AppState.scouting-state;
+                    empty-text: Tr.t("scouting-empty");
+                    retry => { AppState.retry(1); }
+                }
+                if root.content-visible: VerticalLayout {
+                    spacing: 0.5rem;
+                    TeamChip { side: AppState.your-side; text: AppState.your-team-heading; }
+                    for card in AppState.your-cards: ScoutCard { card: card; side: AppState.your-side; }
+                    TeamChip {
+                        side: AppState.your-side == TeamSide.amber ? TeamSide.sapphire : TeamSide.amber;
+                        text: AppState.enemy-team-heading;
+                    }
+                    for card in AppState.enemy-cards: ScoutCard {
+                        card: card;
+                        side: AppState.your-side == TeamSide.amber ? TeamSide.sapphire : TeamSide.amber;
+                    }
+                }
+            }
+        }
+    }
+}

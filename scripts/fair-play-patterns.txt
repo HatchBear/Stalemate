@@ -1,0 +1,59 @@
+# Forbidden patterns for scripts/fair-play-check.sh (TST-030, TST-033, doc 03 FP-1, FP-2, FP-7, FP-8).
+# One rule per line:  <kind> <category> <extended regex, rest of line>
+#   src   searched in source files (crates, ui, dotnet, packaging, config, Cargo.toml, justfile)
+#   lock  matched against crate names in Cargo.lock
+#   sym   matched against undefined (imported) symbols of built binaries
+#   lib   matched against shared libraries a binary links to (ELF NEEDED entries)
+# A source line that legitimately mentions a pattern (for example a comment saying
+# the app never uses it) can carry the marker  fair-play-allow  to be skipped. Every
+# marker is visible in review. Docs (*.md) and scripts/ are not scanned.
+
+# FP-1: process memory
+src memory   \b(ReadProcessMemory|WriteProcessMemory|NtReadVirtualMemory|NtWriteVirtualMemory)\b
+src memory   \bprocess_vm_(readv|writev)\b
+src memory   \bptrace\b
+src memory   /proc/[^ "']*/(mem|maps)\b
+src memory   \bOpenProcess\b
+sym memory   ^(ReadProcessMemory|WriteProcessMemory|NtReadVirtualMemory|NtWriteVirtualMemory|OpenProcess|process_vm_readv|process_vm_writev|ptrace)$
+lock memory  ^(read-process-memory|proc-mem|memflow.*|ptrace.*|process-memory|proc-maps)$
+
+# FP-1: code injection
+src inject   \b(CreateRemoteThread|VirtualAllocEx|QueueUserAPC|NtCreateThreadEx|SetThreadContext)\b
+src inject   \bLoadLibrary[AWEx]*\b
+src inject   \bLD_PRELOAD\b
+sym inject   ^(CreateRemoteThread|VirtualAllocEx|QueueUserAPC|NtCreateThreadEx|SetThreadContext|LoadLibrary[AWEx]*)$
+
+# FP-1: graphics hooks
+src hook     \bSetWindowsHookEx[AW]?\b
+src hook     \b(IDXGISwapChain[0-9]*|ID3D1[0-2][A-Za-z0-9]*|D3D(9|10|11|12)CreateDevice[A-Za-z]*)\b
+src hook     \b(MinHook|MH_CreateHook|Detours?Attach|hook_?present)\b
+src hook     \bVK_LAYER_|vkEnumerate(Instance|Device)LayerProperties|VK_LOADER_LAYERS
+src hook     \bglXSwapBuffers\b
+sym hook     ^(SetWindowsHookEx[AW]?|glXSwapBuffers)$
+lock hook    ^(hudhook|retour|detour|minhook.*|ilhook)$
+
+# FP-1: packet capture
+src packet   \b(libpcap|WinPcap|Npcap|pcap_[a-z_]+|pcap)\b
+src packet   \b(AF_PACKET|SOCK_RAW|IPPROTO_RAW|SIO_RCVALL)\b
+src packet   \b(raw_socket|Type::RAW|Socket::RAW)\b
+sym packet   ^pcap_
+lib packet   ^(libpcap|wpcap|npcap)
+lock packet  ^(pcap.*|pnet.*|rawsock.*|libpcap.*|etherparse-capture)$
+
+# FP-2: input to the game
+src input    \b(SendInput|keybd_event|mouse_event|SetCursorPos|XSendEvent)\b
+src input    \b(XTest[A-Za-z]*|uinput|enigo)\b
+sym input    ^(SendInput|keybd_event|mouse_event|SetCursorPos|XSendEvent|XTest.*|uinput.*)$
+lib input    ^libXtst
+lock input   ^(enigo|rdev|inputbot|autopilot|mki|uinput.*|input-linux.*|xtest.*|rustautogui|mouse-rs|device_query)$
+
+# FP-8, NFR-FAIR-005: Steam Web API and Steamworks; no game-coordinator client (doc 03)
+src steam    api\.steampowered\.com
+src steam    partner\.steam-api\.com
+src steam    \b(ISteamUser|ISteamMatchmaking|SteamNetworkingSockets|CMsgClientHello)\b
+lock steam   ^(steamworks.*|steam-vent.*|steam-api.*|steamlocate-gc.*|steam.*[-_]gc([-_].*)?|gc[-_]client.*|deadlock.*[-_]gc.*|steamgc.*|steam-user.*|steam-protobuf.*|steam-resources.*)$
+
+# FP-7: never force-refresh or refetch opted-out players against deadlock-api
+src optout   refresh[ ]*=[ ]*(true|1)
+src optout   "refresh"[ ,)]*"?(true|1)
+src optout   \bforce_refetch\b

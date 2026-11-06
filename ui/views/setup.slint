@@ -1,0 +1,51 @@
+import { Theme } from "../theme.slint";
+import { Icon, IconKind } from "../icons.slint";
+import { AppState, Tr, Check } from "../types.slint";
+import { HText, BText, Panel, Btn } from "../widgets.slint";
+import { CheckIcon } from "home.slint";
+
+// First-run setup (FR-SET-003): explains the -condebug launch option, then checks it.
+export component SetupPanel inherits Rectangle {
+    background: Theme.base.with-alpha(0.8);
+    // Swallow clicks behind the dialog.
+    TouchArea { }
+    Panel {
+        width: min(parent.width - 2rem, 40rem);
+        height: min(parent.height - 2rem, 30rem);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        background: Theme.base;
+        VerticalLayout {
+            padding: 1.25rem;
+            spacing: 0.75rem;
+            HText { text: Tr.t("setup-title"); font-size: 1.375rem; }
+            BText { text: Tr.t("setup-intro"); }
+            HText { text: Tr.t("setup-steps-title"); }
+            BText { text: Tr.t("setup-step-1"); }
+            BText { text: Tr.t("setup-step-2"); }
+            BText { text: Tr.t("setup-step-3"); }
+            BText { text: Tr.t("setup-step-4"); }
+            HorizontalLayout {
+                spacing: 0.75rem;
+                alignment: start;
+                Btn { label: Tr.t("setup-check-again"); clicked => { AppState.check-again(); } }
+                Btn { label: Tr.t("setup-close"); clicked => { AppState.setup-open = false; } }
+            }
+            Panel {
+                VerticalLayout {
+                    padding: 0.75rem;
+                    spacing: 0.25rem;
+                    HorizontalLayout {
+                        spacing: 0.5rem;
+                        CheckIcon { state: AppState.setup-result; y: 0; }
+                        HText {
+                            text: AppState.setup-result == Check.pass ? Tr.t("setup-result-pass") : AppState.setup-result == Check.fail ? Tr.t("setup-result-fail") : Tr.t("setup-result-pending");
+                        }
+                    }
+                    if AppState.setup-result-detail != "": BText { text: AppState.setup-result-detail; }
+                }
+            }
+            Rectangle { vertical-stretch: 1; }
+        }
+    }
+}

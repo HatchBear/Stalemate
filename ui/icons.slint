@@ -1,0 +1,141 @@
+// Simple original line icons on a 16x16 grid. They are shipped as placeholders until
+// AST-UI-003, -005 and -008 exist (doc 13). Colour never carries meaning alone.
+import { Theme } from "theme.slint";
+
+export enum IconKind {
+    pass, fail, pending, stale, error, offline, loading, empty, info,
+    plus, minus, up, down, remove,
+    lane-troopers, neutral-camps, breakables, urn, sinners-sacrifice,
+}
+
+export component Icon inherits Rectangle {
+    in property <IconKind> kind: IconKind.info;
+    in property <color> tint: Theme.text;
+    in property <length> size: 1.1rem;
+    width: size;
+    height: size;
+
+    // Circle with a check (pass)
+    if root.kind == IconKind.pass: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 8 1 A 7 7 0 1 0 8 15 A 7 7 0 1 0 8 1 M 4.5 8.5 L 7 11 L 11.5 5.5";
+    }
+    // Square with a cross (fail)
+    if root.kind == IconKind.fail: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 1.5 1.5 L 14.5 1.5 L 14.5 14.5 L 1.5 14.5 Z M 5 5 L 11 11 M 11 5 L 5 11";
+    }
+    // Circle with clock hands (pending)
+    if root.kind == IconKind.pending: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 8 1 A 7 7 0 1 0 8 15 A 7 7 0 1 0 8 1 M 8 4 L 8 8 L 11 10";
+    }
+    // Hourglass (stale)
+    if root.kind == IconKind.stale: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 3.5 1.5 L 12.5 1.5 L 8 8 L 12.5 14.5 L 3.5 14.5 L 8 8 Z";
+    }
+    // Triangle with a mark (error)
+    if root.kind == IconKind.error: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 8 1.5 L 15 14 L 1 14 Z M 8 6 L 8 9.5 M 8 11.5 L 8 11.6";
+    }
+    // Signal arcs with a slash (offline)
+    if root.kind == IconKind.offline: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 1.5 6.5 Q 8 1 14.5 6.5 M 4.5 9.5 Q 8 7 11.5 9.5 M 8 13 L 8 13.1 M 2 2 L 14 14";
+    }
+    // Three dots (loading)
+    if root.kind == IconKind.loading: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 2.5px; fill: transparent; stroke-line-cap: round;
+        commands: "M 3 8 L 3.1 8 M 8 8 L 8.1 8 M 13 8 L 13.1 8";
+    }
+    // Circle with a dash (empty)
+    if root.kind == IconKind.empty: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent; stroke-line-cap: round;
+        commands: "M 8 1 A 7 7 0 1 0 8 15 A 7 7 0 1 0 8 1 M 5 8 L 11 8";
+    }
+    // Circle with an i (info)
+    if root.kind == IconKind.info: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent; stroke-line-cap: round;
+        commands: "M 8 1 A 7 7 0 1 0 8 15 A 7 7 0 1 0 8 1 M 8 7 L 8 11.5 M 8 4.5 L 8 4.6";
+    }
+    if root.kind == IconKind.plus: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 2px; fill: transparent; stroke-line-cap: round;
+        commands: "M 8 3 L 8 13 M 3 8 L 13 8";
+    }
+    if root.kind == IconKind.minus: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 2px; fill: transparent; stroke-line-cap: round;
+        commands: "M 3 8 L 13 8";
+    }
+    if root.kind == IconKind.up: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 2px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 8 13 L 8 3 M 3.5 7.5 L 8 3 L 12.5 7.5";
+    }
+    if root.kind == IconKind.down: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 2px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 8 3 L 8 13 M 3.5 8.5 L 8 13 L 12.5 8.5";
+    }
+    if root.kind == IconKind.remove: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 2px; fill: transparent; stroke-line-cap: round;
+        commands: "M 3.5 3.5 L 12.5 12.5 M 12.5 3.5 L 3.5 12.5";
+    }
+    // Soul sources: original shapes, placeholders for AST-UI-005
+    // Lane troopers: three chevrons
+    if root.kind == IconKind.lane-troopers: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 2 4 L 8 8 L 14 4 M 2 8 L 8 12 L 14 8";
+    }
+    // Neutral camps: tent
+    if root.kind == IconKind.neutral-camps: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 1.5 14 L 8 2 L 14.5 14 Z M 8 14 L 8 9";
+    }
+    // Breakables: cracked box
+    if root.kind == IconKind.breakables: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 2 2 L 14 2 L 14 14 L 2 14 Z M 6 2 L 8 7 L 6 10 L 9 14";
+    }
+    // Urn: vase
+    if root.kind == IconKind.urn: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 5 1.5 L 11 1.5 L 10 5 Q 14 8 12 12 L 11 14.5 L 5 14.5 L 4 12 Q 2 8 6 5 Z";
+    }
+    // Sinner's Sacrifice: flame
+    if root.kind == IconKind.sinners-sacrifice: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 8 1.5 Q 12 6 12 10 Q 12 14.5 8 14.5 Q 4 14.5 4 10 Q 4 8 6 6 Q 6.5 8 8 8 Q 8 4 8 1.5 Z";
+    }
+}

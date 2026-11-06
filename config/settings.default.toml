@@ -1,0 +1,18 @@
+# DATA-007: first-run user settings. The user's own settings.toml overrides these, key by key.
+# Thresholds and log patterns live in rules.toml (DATA-001), not here.
+# There is no telemetry setting: the app sends no telemetry (NFR-PRIV-001).
+
+[account]
+# FR-DATA-006: manual override when Steam files can't be read. A SteamID64, an Account ID or a
+# steamcommunity.com/profiles/<id64> URL. Empty means "detect from Steam".
+manual_account = ""
+
+[steam]
+# NFR-PLAT-002: extra Steam library folders to search, for example one on a second drive.
+extra_library_paths = []
+# FR-SET-003: Deadlock's Steam app ID, used to read its launch options (-condebug check).
+deadlock_app_id = 1422450
+
+[llm]
+# FR-SET-001, DEC-030: "off", "local" or "own_key". Keys go in the OS keyring, never in this file.
+llm_provider = "off"

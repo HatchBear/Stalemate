@@ -28,14 +28,14 @@ The user prefers a Rust + .NET combination, or Rust alone if one must be chosen.
 | Demo and broadcast parsing | [`haste`](https://awesome.ecosyste.ms/projects/github.com%2Fblukai%2Fhaste) with `broadcast` feature | Broadcast and replays | BSD-3-Clause |
 | Fallback parser | [DemoFile](https://nuget.org/packages/DemoFile) (.NET) in a sidecar | Resilience after patches | [VERIFY license; must be GPL-3.0 compatible] |
 | UI | `slint` | Main window and overlay UI | GPLv3. The app is licensed GPL-3.0 (DEC-020) |
-| Linux overlay surface | [`layer-shika`](https://docs.rs/crate/layer-shika/0.3.1/source/README.md) (Slint + wlr-layer-shell via smithay-client-toolkit) | Overlay on KDE Plasma Wayland | [VERIFY; must be GPL-3.0 compatible] |
+| Linux overlay surface | `smithay-client-toolkit` layer surface rendering Slint (DEC-055). `layer-shika` is not used: it's AGPL-3.0-or-later | Overlay on KDE Plasma Wayland | MIT |
 | Windows overlay | `windows` crate (Win32 extended styles, `RegisterHotKey`) | Overlay on Windows | MIT/Apache-2.0 |
 | Portals | `ashpd` | GlobalShortcuts, FileChooser on Linux | MIT |
 | Secrets | `oo7` (Linux, Secret portal), `keyring` (Windows Credential Manager) [ASSUMPTION] | Own API keys | MIT |
 | Logging | `tracing`, `tracing-subscriber` | Logs | MIT |
 | Errors | `thiserror`, `anyhow` | Error types | MIT/Apache-2.0 |
 
-`layer-shika` describes itself as early development with an unstable API (RSK-05). The fallback is a direct `smithay-client-toolkit` layer surface with a software renderer [ASSUMPTION].
+The overlay uses a direct `smithay-client-toolkit` layer surface with a Slint software renderer (DEC-055). `layer-shika` was the earlier choice, but it's early-stage (RSK-05) and AGPL-3.0-or-later.
 
 ### Modules
 
@@ -233,8 +233,8 @@ Live Mode covers `MatchDetected`, `Live`, `LiveNoBroadcast` and `AwaitingBroadca
 
 ## Open Questions
 
-- RSK-05: Is `layer-shika` stable enough, or should the overlay use `smithay-client-toolkit` directly?
-- OQ-12: Are layer-shika's and DemoFile's licenses compatible with GPL-3.0? (Slint is used under GPLv3, DEC-020.)
+- RSK-05: Does KWin keep a `smithay-client-toolkit` layer surface above the game? (layer-shika dropped, DEC-055.)
+- OQ-12 (resolved): DemoFile is MIT. layer-shika is AGPL-3.0-or-later, so it isn't used (DEC-055). Slint is used under GPLv3 (DEC-020). haste's dependency `mars` has no licence (DEC-049).
 - [ASSUMPTION] Separate overlay process, VDF crate choice, secrets crates.
 
 ## Acceptance Criteria

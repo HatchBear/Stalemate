@@ -28,7 +28,7 @@ Lists every functional and non-functional requirement with a unique ID, MoSCoW p
 |---|---|---|---|---|---|
 | FR-DATA-001 | Detect match start and match end from the game console log within 5 s of the log line being written | Must | Alpha | DEC-004 | TST-010 |
 | FR-DATA-002 | Obtain the match ID of the current match | Must | Alpha | DEC-004 | TST-011 |
-| FR-DATA-003 | Connect to the Broadcast of the current match and keep consuming it until it ends, tolerating a 60–90 s delay | Must | Alpha | DEC-004, DEC-006 | TST-012 |
+| FR-DATA-003 | Connect to the Broadcast of the current match and keep consuming it until it ends, tolerating the Broadcast delay (about 25 s measured) | Must | Alpha | DEC-004, DEC-006, DEC-050 | TST-012 |
 | FR-DATA-004 | Query deadlock-api with per-endpoint rate limiting and response caching | Must | Alpha | R | TST-013 |
 | FR-DATA-005 | Save the full Broadcast of the user's matches locally for Review; fall back to a downloaded replay file | Must | Alpha | U | TST-014 |
 | FR-DATA-006 | Identify the user's Account ID from local Steam files, or from manual entry if that fails | Must | Alpha | [ASSUMPTION] | TST-015 |
@@ -85,7 +85,7 @@ Lists every functional and non-functional requirement with a unique ID, MoSCoW p
 | FR-REV-001 | Save a record of every match the user plays automatically | Must | Alpha | U | TST-060 |
 | FR-REV-002 | Break the match into Lane phase (0–9 min), mid game (9–20) and late game (20+), with findings for each | Must | Beta | U | TST-062 |
 | FR-REV-003 | Show the user's soul lead or deficit against their lane opponents at 9:00 | Must | Alpha | FB | TST-063 |
-| FR-REV-004 | Show where the user's souls came from: lane troopers, neutral camps, breakables, Urn, Sinner's Sacrifice | Must | Alpha | FB | TST-063 |
+| FR-REV-004 | Show where the user's souls came from: lane troopers, neutral camps, breakables, Urn, Sinner's Sacrifice, plus Other for the rest. Urn shows as not available until a data field for it is verified (DEC-052) | Must | Alpha | FB, DEC-052 | TST-063 |
 | FR-REV-005 | For each death, show time, place, souls lost, and abilities or items off cooldown and unused | Must | Beta | FB | TST-064 |
 | FR-REV-006 | Show damage taken split by heroes, troopers and neutrals, with damage mitigated by items | Should | Beta | FB | TST-065 |
 | FR-REV-007 | Show headshot rate, accuracy, and melee and parry usage | Should | v1 | FB | TST-065 |

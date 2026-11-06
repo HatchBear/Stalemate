@@ -38,7 +38,7 @@ During Live Mode, the Live view shows only Live-Safe fields (NFR-FAIR-003).
 | OV-2 | Build swap | Top suggestion: "swap X → Y" | 1 row |
 | OV-3 | Pace | Souls/min difference against benchmark; next core item ahead, on time or behind | 1 row |
 | OV-4 | Next objective | Next timer or flex slot requirement | 1 row |
-| OV-5 | Status | Broadcast delay in seconds; a stale warning when the delay is over 120 s | 1 row |
+| OV-5 | Status | Broadcast delay in seconds; a stale warning when the delay is over 60 s (DEC-050) | 1 row |
 
 Each panel can be turned on or off in Settings.
 
@@ -70,7 +70,7 @@ Whether KWin keeps an `overlay`-layer surface above a game running under XWaylan
 |---|---|---|
 | Loading | Request in flight | A placeholder per field |
 | Empty | No public data (opt-out or new account) | "No public data" |
-| Stale | Broadcast delay over 120 s, or cached data older than its TTL | Stale marker with age |
+| Stale | Broadcast delay over 60 s (DEC-050), or cached data older than its TTL | Stale marker with age |
 | Error | Source failed after retries | Error with source name and a retry action |
 | Offline | No network | Banner; cached data stays visible |
 

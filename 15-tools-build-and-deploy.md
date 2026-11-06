@@ -15,13 +15,13 @@ Specifies the developer environment, build commands, Flatpak and Windows packagi
 
 | Tool | Version | Purpose |
 |---|---|---|
-| Rust toolchain via `rustup` | Current stable at project start, pinned in `rust-toolchain.toml` [ASSUMPTION] | Build |
+| Rust toolchain via `rustup` | 1.98.1, pinned in `rust-toolchain.toml` to match the Flatpak rust-stable extension (DEC-054) | Build |
 | `clippy`, `rustfmt` | With the toolchain | Lint, format |
 | `just` | Latest | Task runner |
-| .NET SDK | The version DemoFile targets [VERIFY] | PRG-21 |
+| .NET SDK | 9.x (DemoFile.Game.Deadlock 0.44.1 targets `net9.0`, DEC-054) | PRG-21 |
 | `flatpak`, `flatpak-builder` | Distribution packages | Flatpak builds |
-| KDE runtime and SDK | `org.kde.Platform` / `org.kde.Sdk` 6.x [VERIFY current branch] | Flatpak base |
-| Rust SDK extension | `org.freedesktop.Sdk.Extension.rust-stable`, branch matching the KDE SDK's freedesktop base [VERIFY] | Rust inside flatpak-builder |
+| KDE runtime and SDK | `org.kde.Platform` / `org.kde.Sdk` 6.11 (verified 2026-11-05, DEC-054) | Flatpak base |
+| Rust SDK extension | `org.freedesktop.Sdk.Extension.rust-stable//25.08`, matching KDE 6.11's freedesktop 25.08 base (DEC-054) | Rust inside flatpak-builder |
 | `flatpak-cargo-generator.py` | From flatpak-builder-tools | Offline cargo sources for Flathub |
 | `resvg`, `oxipng` | Latest | Asset export ([13](13-art-and-asset-pipeline.md)) |
 | `sqlite3` CLI | Any | Debugging |
@@ -55,7 +55,7 @@ Path: `packaging/flatpak/io.github.hatchbear.stalemate.yml`. Versions marked VER
 ```yaml
 app-id: io.github.hatchbear.stalemate                      # CD-01, reverse-DNS
 runtime: org.kde.Platform
-runtime-version: '6.x'                # VERIFY current branch
+runtime-version: '6.11'               # DEC-054
 sdk: org.kde.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable   # VERIFY branch compatibility

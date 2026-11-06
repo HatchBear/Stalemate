@@ -1,0 +1,9 @@
+# Reviewed exceptions for scripts/fair-play-check.sh.
+# Format:  <category> <file path> <extended regex matched against the line, rest of line>
+# Comment-only lines (// ... ///, //!) are always ignored: they don't ship in the binary.
+# Keep this list short. Each entry needs a reason in the comment above it.
+
+# The deadlock-api client refuses `force_refetch` and `refresh` (FP-7). This is the guard list.
+optout crates/core/src/api_client/mod.rs FORBIDDEN_PARAMS
+# Its tests assert that those parameters are refused and never sent.
+optout crates/core/src/api_client/tests.rs .*

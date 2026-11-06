@@ -1,0 +1,208 @@
+import { Theme } from "theme.slint";
+import { Icon, IconKind } from "icons.slint";
+import { AppState, Tr, StateUi, DataKind } from "types.slint";
+
+// Heading and label text: Jost.
+export component HText inherits Text {
+    color: Theme.text;
+    font-family: Theme.heading-font;
+    font-size: 1rem;
+    font-weight: 500;
+    wrap: word-wrap;
+}
+
+// Body text: Noto Sans.
+export component BText inherits Text {
+    color: Theme.text;
+    font-family: Theme.body-font;
+    font-size: 0.875rem;
+    wrap: word-wrap;
+}
+
+export component Panel inherits Rectangle {
+    background: Theme.panel;
+    border-width: 1px;
+    border-color: Theme.text;
+}
+
+// Icon plus text, so state is never carried by colour alone.
+export component IconText inherits HorizontalLayout {
+    in property <IconKind> kind;
+    in property <string> text;
+    in property <color> tint: Theme.text;
+    spacing: 0.5rem;
+    alignment: start;
+    Icon { kind: root.kind; tint: root.tint; y: 0; }
+    BText { text: root.text; vertical-alignment: center; }
+}
+
+export component Btn inherits Rectangle {
+    in property <string> label;
+    in property <bool> selected: false;
+    callback clicked();
+    preferred-width: lbl.preferred-width + 1.5rem;
+    min-width: self.preferred-width;
+    preferred-height: 2.25rem;
+    min-height: 2.25rem;
+    max-height: 2.25rem;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    background: root.selected || area.has-hover || fs.has-focus ? Theme.raised : Theme.panel;
+    border-width: fs.has-focus ? 2px : 1px;
+    border-color: Theme.text;
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
+    animate background { duration: Theme.motion; }
+
+    fs := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Return || e.text == " ") {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+        area := TouchArea {
+            clicked => {
+                fs.focus();
+                root.clicked();
+            }
+        }
+        lbl := HText {
+            text: root.label;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            x: 0.75rem;
+            width: parent.width - 1.5rem;
+            height: parent.height;
+            wrap: no-wrap;
+        }
+    }
+}
+
+export component IconBtn inherits Rectangle {
+    in property <IconKind> kind;
+    in property <string> label;
+    callback clicked();
+    width: 2rem;
+    height: 2rem;
+    background: area.has-hover || fs.has-focus ? Theme.raised : Theme.panel;
+    border-width: fs.has-focus ? 2px : 1px;
+    border-color: Theme.text;
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
+
+    fs := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Return || e.text == " ") {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+        area := TouchArea {
+            clicked => {
+                fs.focus();
+                root.clicked();
+            }
+        }
+        Icon {
+            kind: root.kind;
+            size: 1rem;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+        }
+    }
+}
+
+export component TextBox inherits Rectangle {
+    in-out property <string> text <=> input.text;
+    in property <string> placeholder;
+    in property <string> label;
+    callback accepted(string);
+    callback edited(string);
+    min-height: 2rem;
+    background: Theme.base;
+    border-width: input.has-focus ? 2px : 1px;
+    border-color: Theme.text;
+    forward-focus: input;
+    accessible-role: text-input;
+    accessible-label: root.label;
+
+    if input.text == "": Text {
+        x: 0.6rem;
+        width: parent.width - 1.2rem;
+        text: root.placeholder;
+        color: Theme.secondary;
+        font-family: Theme.body-font;
+        font-size: 0.875rem;
+        vertical-alignment: center;
+        height: parent.height;
+    }
+    input := TextInput {
+        x: 0.6rem;
+        width: parent.width - 1.2rem;
+        height: parent.height;
+        color: Theme.text;
+        font-family: Theme.body-font;
+        font-size: 0.875rem;
+        vertical-alignment: center;
+        single-line: true;
+        selection-background-color: Theme.raised;
+        selection-foreground-color: Theme.text;
+        accepted => { root.accepted(self.text); }
+        edited => { root.edited(self.text); }
+    }
+}
+
+// Fade-in on view change. Duration is 0 when reduce-motion is on.
+export component ViewFrame inherits Rectangle {
+    property <bool> shown: false;
+    opacity: shown ? 1 : 0;
+    animate opacity { duration: Theme.motion; }
+    init => { self.shown = true; }
+    @children
+}
+
+// Loading, Empty, Stale and Error states (doc 09). Content shows for Loaded and Stale.
+export component StateBar inherits VerticalLayout {
+    in property <StateUi> state;
+    in property <string> empty-text;
+    callback retry();
+    spacing: 0.5rem;
+
+    if root.state.kind == DataKind.loading: Panel {
+        VerticalLayout {
+            padding: 0.75rem;
+            spacing: 0.5rem;
+            IconText { kind: IconKind.loading; text: Tr.t("state-loading"); }
+            // A placeholder per field
+            Rectangle { height: 0.8rem; background: Theme.raised; }
+            Rectangle { height: 0.8rem; width: 70%; background: Theme.raised; }
+            Rectangle { height: 0.8rem; width: 45%; background: Theme.raised; }
+        }
+    }
+    if root.state.kind == DataKind.empty: Panel {
+        VerticalLayout {
+            padding: 0.75rem;
+            IconText { kind: IconKind.empty; text: root.empty-text; }
+        }
+    }
+    if root.state.kind == DataKind.stale: Panel {
+        VerticalLayout {
+            padding: 0.5rem;
+            IconText { kind: IconKind.stale; text: root.state.message; }
+        }
+    }
+    if root.state.kind == DataKind.error: Panel {
+        border-color: Theme.warn;
+        HorizontalLayout {
+            padding: 0.75rem;
+            spacing: 0.75rem;
+            IconText { kind: IconKind.error; tint: Theme.warn; text: root.state.message; horizontal-stretch: 1; }
+            Btn { label: Tr.t("state-retry"); clicked => { root.retry(); } }
+        }
+    }
+}

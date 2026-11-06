@@ -1,0 +1,72 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/*",
+]
+
+[workspace.package]
+edition = "2021"
+
+[workspace.dependencies]
+# internal
+haste = { path = "." }
+haste_broadcast = { path = "crates/haste_broadcast", default-features = false }
+haste_core = { path = "crates/haste_core" }
+haste_vartype = { path = "crates/haste_vartype" }
+# my other repos
+valveprotos = { git = "https://github.com/blukai/valveprotos-rs.git", rev = "63620c46236ed0f03a9e8b75954a4dafd0fe8e53" }
+# external
+anyhow = "1.0.86"
+argh = "0.1.12"
+bytes = "1.7.2"
+env_logger = "0.11.5"
+expect-test = "1.5.0"
+http = "1.1.0"
+log = "0.4.22"
+pollster = "0.3.0"
+prost = "0.13.3"
+rand = "0.8.5"
+reqwest = { version = "0.12.8", default-features = false }
+serde = "1.0.210"
+serde_json = "1.0.128"
+snap = "1.1.1"
+thiserror = "1.0.64"
+tokio = { version = "1.40.0", default-features = false }
+
+[workspace.dependencies.mars]
+package = "mars"
+git = "https://github.com/blukai/mars.git"
+rev = "5d831c5"
+features = [
+  "bitbuf",
+  "fxhash",
+  "nohash",
+  "varint",
+]
+
+# enable more optimizations in dev (/debug) builds for dependencies
+[profile.dev.package."*"]
+opt-level = 3
+
+[package]
+name = "haste"
+version = "0.0.0"
+edition.workspace = true
+license = "BSD-3-Clause"
+
+[dependencies]
+haste_broadcast = { workspace = true, optional = true }
+haste_core.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+rand.workspace = true
+
+[features]
+broadcast = ["haste_broadcast/reqwest", "haste_broadcast/tokio"]
+deadlock = ["haste_core/deadlock"]
+dota2 = ["haste_core/dota2"]
+# TODO(blukai): rename preserve-metadata feature into something more meaningful,
+# or get rid of it all together and preserve symbols only in debug builds.
+preserve-metadata = ["haste_core/preserve-metadata"]
+protobuf-src = ["haste_core/protobuf-src"]

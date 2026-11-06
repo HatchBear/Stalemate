@@ -1,0 +1,72 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { Icon, IconKind } from "../icons.slint";
+import { AppState, Tr, Check } from "../types.slint";
+import { HText, BText, Panel, Btn, ViewFrame } from "../widgets.slint";
+
+export component CheckIcon inherits Icon {
+    in property <Check> state;
+    kind: state == Check.pass ? IconKind.pass : state == Check.fail ? IconKind.fail : IconKind.pending;
+    tint: state == Check.fail ? Theme.warn : Theme.text;
+}
+
+export component HomeView inherits ViewFrame {
+    ScrollView {
+        VerticalLayout {
+            padding: 1rem;
+            spacing: 1rem;
+            alignment: start;
+            HText { text: Tr.t("home-title"); font-size: 1.5rem; }
+
+            Panel {
+                VerticalLayout {
+                    padding: 1rem;
+                    spacing: 0.6rem;
+                    HText { text: Tr.t("home-checks-title"); font-size: 1.125rem; }
+                    for check in AppState.checks: HorizontalLayout {
+                        spacing: 0.75rem;
+                        CheckIcon { state: check.state; y: 0; }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            HText { text: check.label; }
+                            if check.detail != "": BText { text: check.detail; }
+                        }
+                        HText {
+                            text: check.state == Check.pass ? Tr.t("check-pass") : check.state == Check.fail ? Tr.t("check-fail") : Tr.t("check-pending");
+                            horizontal-alignment: right;
+                            min-width: 4.5rem;
+                        }
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        Btn { label: Tr.t("home-open-setup"); clicked => { AppState.setup-open = true; } }
+                    }
+                }
+            }
+
+            Panel {
+                VerticalLayout {
+                    padding: 1rem;
+                    spacing: 0.5rem;
+                    HText { text: Tr.t("home-last-match-title"); font-size: 1.125rem; }
+                    if AppState.last-match.has-match: HorizontalLayout {
+                        spacing: 0.75rem;
+                        Icon {
+                            kind: AppState.last-match.won ? IconKind.pass : IconKind.fail;
+                            y: 0;
+                        }
+                        VerticalLayout {
+                            HText { text: AppState.last-match.headline; }
+                            BText { text: AppState.last-match.detail; }
+                        }
+                    }
+                    if !AppState.last-match.has-match: HorizontalLayout {
+                        spacing: 0.75rem;
+                        Icon { kind: IconKind.empty; }
+                        BText { text: Tr.t("home-no-match"); }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -64,8 +64,8 @@ CREATE TABLE match_players (
   account_id     INTEGER NOT NULL,
   team           INTEGER NOT NULL,
   hero_id        INTEGER NOT NULL,
-  assigned_lane  INTEGER,                  -- nullable until OQ-05 resolved
-  party_id       INTEGER,                  -- nullable until OQ-05 resolved
+  assigned_lane  INTEGER,                  -- from API-05 (OQ-05 resolved)
+  party_id       INTEGER,                  -- always NULL for now: API-05 has no party field (DEC-053)
   PRIMARY KEY (match_id, account_id)
 );
 

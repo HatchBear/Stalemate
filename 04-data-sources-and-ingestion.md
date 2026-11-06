@@ -20,7 +20,7 @@ Specifies every data source the app uses: how it's read, how often, its limits, 
 |---|---|---|---|---|
 | Game console log (launch option `-condebug`) | Match start, match end, match ID | Live | Seconds | M-01 Match Watcher |
 | Local Steam files | The user's Account ID, Steam library paths | Startup | — | M-02 Account |
-| Valve Broadcast | Full entity state of the live match | Live | 60–90 s behind (DEC-006) | M-04 Broadcast client |
+| Valve Broadcast | Full entity state of the live match | Live | About 25 s behind (DEC-006, DEC-050) | M-04 Broadcast client |
 | deadlock-api | Player history, MMR, hero stats, builds, item and hero analytics, game assets | Any time | Cached server-side | M-03 API client |
 | GitHub Releases | Latest app version | Startup | — | M-20 Settings (FR-SET-004) |
 | Recorded Broadcast or replay `.dem` | Full match data for Review | After the match | — | M-04, M-21 |
@@ -53,9 +53,9 @@ The app analyzes Standard-mode matches only (DEC-019). The mode is read from the
 - **Library:** [haste](https://awesome.ecosyste.ms/projects/github.com%2Fblukai%2Fhaste) (Rust, BSD-3-Clause). It parses Deadlock replays and HTTP broadcasts through its optional `broadcast` feature.
 - **Fallback:** [DemoFile](https://nuget.org/packages/DemoFile) (.NET) in a sidecar process (M-21) when haste fails after a game patch (NFR-REL-002).
 - **Locating the Broadcast:** How to get the Broadcast URL for a match ID without the app running its own Valve game-coordinator client is unresolved (OQ-02, RSK-11). Candidates, in order of preference:
-    1. A deadlock-api endpoint that returns the Broadcast URL for a live match [VERIFY].
+    1. deadlock-api (chosen, DEC-049). First check the listing `GET /v1/matches/live/urls` (100 req/s per IP). If the match isn't listed, call `GET /v1/matches/{match_id}/live/url` once (6 req/h per IP, 300 req/h globally; deadlock-api spectates the match on its side). Reuse the URL for reconnects.
     2. deadlock-api's live events service ([live.deadlock-api.com](https://live.deadlock-api.com/), $0.50 per match). Not used: it conflicts with NFR-COST-001, and the Upkeep tier is out of v1 scope (DEC-018).
-- **Go/no-go gate (DEC-021):** Task T-008 must find a compliant locator before live features are built. It also confirms that the Broadcast roster carries each player's Account ID. If no compliant locator exists, Alpha ships without the Broadcast: scouting from deadlock-api with manual roster entry (FR-DATA-007), and a post-match Review from a downloaded replay (API-17) or a stats-only Review from API-05. The app never implements its own game-coordinator client (RSK-11).
+- **Go/no-go gate (DEC-021):** Passed on 2026-11-05 (DEC-049). The roster carries each player's Account ID (`CCitadelPlayerController.m_unEconAccountID`) from the first fragment. Task T-008 had to find a compliant locator before live features are built. It also confirms that the Broadcast roster carries each player's Account ID. If no compliant locator exists, Alpha ships without the Broadcast: scouting from deadlock-api with manual roster entry (FR-DATA-007), and a post-match Review from a downloaded replay (API-17) or a stats-only Review from API-05. The app never implements its own game-coordinator client (RSK-11).
 - **Delay:** Every Broadcast-derived value carries `t_game` (game time) and `t_received` (wall time). The UI shows the current delay (FR-UI-008).
 - **Recording:** Every Broadcast fragment received for the user's own match is appended to `recordings/<match_id>.bcast` for Review (FR-DATA-005).
 - **Reconnect:** Backoff 2, 4, 8, 16, 32 s, then emit `BroadcastLost` (NFR-REL-001).
@@ -67,10 +67,10 @@ Base URL: `https://api.deadlock-api.com`. The machine-readable spec is at `/open
 | ID | Endpoint | Used for | Status |
 |---|---|---|---|
 | API-01 | `GET /v1/players/{account_id}/match-history` | Last N matches per player | Path verified in a third-party issue; returns cached history |
-| API-02 | `GET /v1/players/mmr` | MMR and rank history | Path verified in a third-party CLI |
+| API-02 | `GET /v1/players/rank?account_ids=…` (batch) | Current rank only. `/v1/players/mmr` no longer exists and there is no MMR history endpoint; the trend comes from API-01 `ranked_delta` (DEC-051) | Verified in spec (2026-11-05). 20 req/min per IP |
 | API-03 | `GET /v1/players/hero-stats` | Per-hero matches and win rate | Path verified in a third-party CLI |
 | API-04 | `GET /v1/players/steam` | Display name and avatar | Path verified in a third-party CLI |
-| API-05 | `GET /v1/matches/metadata?match_ids=…` | Per-match items, purchases, stats over time, selected build, pre-swap hero, bans | Path seen in an upstream issue; fields [VERIFY] |
+| API-05 | `GET /v1/matches/metadata?match_ids=…` (bulk), `GET /v1/matches/{match_id}/metadata?disable_steam=true` (single) | Per-match items with purchase times, `assigned_lane`, `hero_build_id` and `pregame_hero_id` (when demo analysis has them), cumulative `stats[]` every 180 s with `net_worth` and souls by source, objectives. No party ID | Verified (T-009, DEC-053). Bulk: 30 req/min per IP, up to 1,000 IDs per call |
 | API-06 | `GET /v1/analytics/hero-build-stats/{hero_id}?account_ids=…` | Which builds a player selects at game start | Verified in spec |
 | API-07 | `GET /v1/analytics/item-stats` (`hero_ids`, `enemy_hero_ids`, `same_lane_filter`, `bucket`, badge filters) | Counter-item scores, item timing | Verified in spec |
 | API-08 | `GET /v1/analytics/item-flow-stats` | Per-phase item transitions, adjusted win rate | Verified in spec |
@@ -81,7 +81,7 @@ Base URL: `https://api.deadlock-api.com`. The machine-readable spec is at `/open
 | API-13 | `GET /v1/analytics/hero-ban-stats` | Match-level ban rates (FR-SCOUT-016) | Verified in spec |
 | API-14 | `GET /v1/analytics/hero-swap-stats` | Baseline swap rates | Verified in spec |
 | API-15 | `GET /v1/assets/heroes`, `/v1/assets/items`, `/v1/assets/ranks` | Game data and icons | Referenced in spec |
-| API-16 | Community builds listing | In-game builds (FR-BUILD-001) | Exists per the API's README; path [VERIFY] |
+| API-16 | `GET /v1/builds?hero_id=…&only_latest=true` | In-game builds (FR-BUILD-001). Don't use `/v1/builds/{hero_id}/{build_id}`: it can trigger a game-coordinator fetch on deadlock-api's side | Verified (T-009, DEC-053). 100 req/s per IP |
 | API-18 | Team comp win-rate prediction (the source behind deadlock-api's team builder) | Team comp prediction (FR-LIVE-016) | Path [VERIFY]; the team builder page documents no endpoint. Fallback: global hero counter and synergy stats (API-09 and API-10 without `account_ids`) |
 | API-17 | Replay file URL for a match | Downloading a replay when the recording is missing (FR-DATA-009) | Path [VERIFY]. If it needs Valve-side data, treat it like the locator (OQ-02) and drop it if non-compliant |
 
@@ -91,6 +91,7 @@ Base URL: `https://api.deadlock-api.com`. The machine-readable spec is at `/open
 |---|---|---|
 | Analytics endpoints (shared) | 200 req/min per IP. With a key: 400 req/min and 2,500 req/h. Global: 2,000 req/min | [openapi.json](https://api.deadlock-api.com/openapi.json) |
 | Match history | 100 req/s per IP. `force_refetch=true` is limited to 1 req/h per IP (5 with a key) | [DeadBase issue #27](https://github.com/EdwardGlockner/DeadBase/issues/27) |
+| Per-endpoint limits (2026-11-05 spec) | API-05 bulk 30 req/min; API-02 rank batch 20 req/min; live URL 6 req/h (DEC-049). Each gets its own bucket at 80% in DATA-001 (DEC-053) | [openapi.json](https://api.deadlock-api.com/openapi.json) |
 | Load shedding | `503` with `Retry-After` when busy; `504` on timeout, then fails fast for a few minutes | [openapi.json](https://api.deadlock-api.com/openapi.json) |
 
 #### Client rules
@@ -107,7 +108,7 @@ Base URL: `https://api.deadlock-api.com`. The machine-readable spec is at `/open
 |---|---|---|
 | API-01, API-02, API-03 for 11 players | 33 | Non-analytics |
 | API-06, API-11 for 11 players | 22 | Analytics |
-| API-05 for the last 30 matches on the current hero × 11 players, batched 20 IDs per call | 22 | Non-analytics [VERIFY batch size]. The Build Profile and Playstyle share this sample |
+| API-05 for the last 30 matches on the current hero × 11 players, batched in one call per player (up to 1,000 IDs per call) | 11 | Metadata bucket, 24/min (DEC-053). The Build Profile and Playstyle share this sample |
 | API-12 for Playstyle percentiles, one per player and hero | 11 | Analytics (Beta) |
 | API-07 lift lookups `L(i, e)` for the Counter-buy filter | Lazy: only for candidate counter items, cached by (hero, enemy hero, patch) | Analytics (Beta) |
 | API-07, API-08 for counter items, refreshed on enemy purchases (max 1 per 30 s) | ≤ 2 per min | Analytics |
@@ -140,7 +141,7 @@ sequenceDiagram
     Game->>MW: console.log line (match start)
     MW->>Core: MatchStarted(match_id)
     Core->>BC: open(match_id)
-    BC-->>Core: fragments (60–90 s behind)
+    BC-->>Core: fragments (about 25 s behind)
     Core->>API: scouting requests (roster from Broadcast)
     API-->>Core: player data
     Game->>MW: console.log line (match end)

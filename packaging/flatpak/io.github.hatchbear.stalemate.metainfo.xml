@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.hatchbear.stalemate</id>
+  <name>Stalemate</name>
+  <summary>Companion app for Deadlock: scouting, live recommendations, match review</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <developer id="io.github.hatchbear">
+    <name>HatchBear</name>
+  </developer>
+  <description>
+    <p>Stalemate is a free companion app for Valve's Deadlock. It shows public stats for the players in your match, gives live item and pace recommendations, and reviews your matches afterwards.</p>
+    <p>During a match it shows only information a player could see in-game. It never reads game memory, injects code, hooks graphics or sends input to the game.</p>
+    <p>Stalemate is not affiliated with or endorsed by Valve Corporation. Deadlock is a trademark of Valve Corporation.</p>
+  </description>
+  <launchable type="desktop-id">io.github.hatchbear.stalemate.desktop</launchable>
+  <url type="homepage">https://github.com/HatchBear/Stalemate</url>
+  <url type="bugtracker">https://github.com/HatchBear/Stalemate/issues</url>
+  <categories>
+    <category>Game</category>
+    <category>Utility</category>
+  </categories>
+  <content_rating type="oars-1.1" />
+  <provides>
+    <binary>stalemate</binary>
+  </provides>
+  <releases>
+    <release version="0.1.0" date="2026-11-05" />
+  </releases>
+</component>
