@@ -25,8 +25,10 @@ $MsiVersion = ($Version -split '[-+]')[0]
 $exe = "target/release/stalemate.exe"
 if (-not (Test-Path $exe)) { throw "$exe not found. Run: cargo build --release -p stalemate-app" }
 
-$out = "target/package/windows"
-$stage = "$out/stage/stalemate"
+# Absolute paths: WiX resolves relative -d values against the .wxs folder, not the cwd.
+$root = (Get-Location).Path
+$out = Join-Path $root "target/package/windows"
+$stage = Join-Path $out "stage/stalemate"
 if (Test-Path "$out/stage") { Remove-Item -Recurse -Force "$out/stage" }
 New-Item -ItemType Directory -Force $stage | Out-Null
 Copy-Item $exe $stage
@@ -39,8 +41,10 @@ Copy-Item "LICENSE" $stage
 Set-Content -NoNewline -Encoding ascii -Path "$stage/package_format" -Value "msi"
 Copy-Item "packaging/windows/README.md" "$stage/README.txt"
 
-$msi = "$out/stalemate-$Version-x64.msi"
-$zip = "$out/stalemate-$Version-windows-x64-portable.zip"
+if (-not (Test-Path -LiteralPath "$stage/stalemate.exe")) { throw "staging failed: $stage/stalemate.exe is missing" }
+
+$msi = Join-Path $out "stalemate-$Version-x64.msi"
+$zip = Join-Path $out "stalemate-$Version-windows-x64-portable.zip"
 Remove-Item -Force -ErrorAction SilentlyContinue $msi, $zip
 
 # No ICE validation for Alpha. In WiX 4/5 `wix build` does not run it and rejects -sice; that
@@ -51,6 +55,14 @@ wix build -arch x64 `
     -d "Version=$MsiVersion" -d "StageDir=$stage" `
     -o $msi "packaging/windows/stalemate.wxs"
 if ($LASTEXITCODE -ne 0) { throw "wix build failed" }
+
+# An empty harvest (WIX8601) only warns and yields a tiny MSI that installs nothing. Fail on that.
+# The cab is compressed, so the floor is a quarter of the exe size.
+$exeSize = (Get-Item -LiteralPath "$stage/stalemate.exe").Length
+$msiSize = (Get-Item -LiteralPath $msi).Length
+if ($msiSize -lt ($exeSize / 4)) {
+    throw "MSI is $msiSize bytes but stalemate.exe is $exeSize bytes: the staged files were not harvested (check StageDir)."
+}
 
 Set-Content -NoNewline -Encoding ascii -Path "$stage/package_format" -Value "zip"
 Compress-Archive -Path $stage -DestinationPath $zip
