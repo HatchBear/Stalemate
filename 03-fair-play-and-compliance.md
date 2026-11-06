@@ -107,6 +107,6 @@ A field is Live-Safe if a player could see it in-game at that moment. Fields mar
 
 - [x] Every LS field marked Verify has been checked in-game and set to Yes or No (2026-11-05, DEC-048).
 - [ ] TST-030 passes: no non-Live-Safe field appears in any Live Mode payload across 20 recorded matches.
-- [ ] Code review confirms no memory access, injection, hooking, packet capture or input APIs are linked.
+- [ ] Code review confirms no memory access, injection, hooking, packet capture or input APIs are linked. Two reviewed exceptions (DEC-079): `LoadLibrary*`, which the Windows C runtime and Rust's standard library use to load system DLLs into the app's own process; and `SendInput` in the main Windows app, linked by Slint's winit and muda libraries but unreachable, because the source check forbids the calls that reach it (bring to front, fullscreen windows, native menus). Every other injection and input API stays forbidden in every binary.
 - [ ] The privacy policy is published at a stable URL before v1.
 - [ ] No Scouting Card is shown until the Broadcast reports game time above 0 (FP-10). A Beta tester with ranked access confirms the swap phase is over by then.

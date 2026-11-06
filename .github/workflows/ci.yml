@@ -84,6 +84,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --workspace
       - run: bash scripts/fair-play-check.sh --require-binaries
+      - run: bash scripts/fair-play-check.test.sh
       - run: sh scripts/no-hardcoded-ids.sh
 
   assets-check:

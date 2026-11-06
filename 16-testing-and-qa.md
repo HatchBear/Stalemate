@@ -48,7 +48,7 @@ Defines how every requirement is verified: test levels, the full test case list,
 | TST-029 | FR-SCOUT-011, FR-SCOUT-012 | Fixtures plus local DB | Matchup and repeat-player records correct |
 | TST-0291 | FR-SCOUT-013 | Simulated Session: 3 losses; and 3 h | Reminder in the main window; never in the overlay |
 | TST-0292 | FR-SCOUT-016 | API-13 fixture | Ban rates shown for the rank range |
-| TST-030 | NFR-FAIR-001 to 003, FP-4, SM-9 | Run 20 FX-BC matches in Live Mode; validate every overlay and window payload against the whitelist; inspect linked symbols | Zero non-Live-Safe keys; no memory, injection, hook, packet or input APIs linked |
+| TST-030 | NFR-FAIR-001 to 003, FP-4, SM-9 | Run 20 FX-BC matches in Live Mode; validate every overlay and window payload against the whitelist; inspect linked symbols | Zero non-Live-Safe keys; no memory, injection, hook, packet or input APIs linked, apart from the reviewed exceptions in DEC-079 |
 | TST-031 | FR-LIVE-015 | Code review and payload check | No fight data in Live Mode |
 | TST-032 | NFR-FAIR-004 | Mock 404 for one player | "No public data"; no retries in 10 min |
 | TST-033 | NFR-FAIR-005 | Network capture during a full match | No `api.steampowered.com` calls about other players |
