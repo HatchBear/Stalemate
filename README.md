@@ -13,7 +13,6 @@ Stalemate is not made by, affiliated with or endorsed by Valve.
 ## What you can do in the Alpha
 
 | | |
-|---|---|
 | **Automatic match detection** | Stalemate notices when your match starts and ends from the game's own log. No buttons to press. You can also paste a match ID to follow any match |
 | **Scouting** | A card for every player: overall record, last 20 matches, rank, top heroes and games on their current hero. Players who opted out of public data show "No public data" |
 | **Live enemy board** | Each enemy's items, as tiles in the shop's category colours, and their souls. It shows only what the in-game scoreboard would show you, with the broadcast delay stated on screen |
