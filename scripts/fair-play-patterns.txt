@@ -57,3 +57,10 @@ lock steam   ^(steamworks.*|steam-vent.*|steam-api.*|steamlocate-gc.*|steam.*[-_
 src optout   refresh[ ]*=[ ]*(true|1)
 src optout   "refresh"[ ,)]*"?(true|1)
 src optout   \bforce_refetch\b
+
+# DEC-079: keep Slint dependencies' SendInput paths unreachable (winit force_window_active,
+# muda native menu shortcuts). stalemate.exe's SendInput import is allowed only because of these.
+src input    \b(bring_to_front|focus_window|set_fullscreen)\b
+src input    \bfull-screen[[:space:]]*:
+src input    \b(MenuBar|ContextMenuArea)\b
+src input    \bMenu(Item)?[[:space:]]*\{

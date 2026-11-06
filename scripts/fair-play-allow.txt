@@ -7,3 +7,19 @@
 optout crates/core/src/api_client/mod.rs FORBIDDEN_PARAMS
 # Its tests assert that those parameters are refused and never sent.
 optout crates/core/src/api_client/tests.rs .*
+
+# ---- Binary symbol exceptions (DEC-079) ----
+# Format:  symbol <binary basename> <ERE matched against the whole symbol>
+# Applied only to the binary symbol scan. Basename match, so ELF builds never match.
+# LoadLibrary* comes from the MSVC C runtime and Rust std loading system DLLs into our own
+# process. Injecting into another process needs CreateRemoteThread/VirtualAllocEx/
+# WriteProcessMemory, which stay forbidden.
+symbol stalemate.exe LoadLibrary(A|W|ExA|ExW)
+symbol stalemate-overlay.exe LoadLibrary(A|W|ExA|ExW)
+symbol stalemate-fixture-recorder.exe LoadLibrary(A|W|ExA|ExW)
+symbol stalemate-model-trainer.exe LoadLibrary(A|W|ExA|ExW)
+# SendInput in stalemate.exe comes from two Slint dependencies, never our code: winit's
+# force_window_active (fake Alt press; reached only by fullscreen windows or focus_window)
+# and muda (fake Ctrl+key for native menu Edit items). The source guards in
+# fair-play-patterns.txt keep both paths unreachable. Not allowed for the overlay or tools.
+symbol stalemate.exe SendInput

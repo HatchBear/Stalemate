@@ -9,12 +9,15 @@
 # Usage: scripts/fair-play-check.sh [--require-binaries]
 #   --require-binaries  fail if no built binaries are found (CI uses this)
 #
-# Binaries are looked up in $CARGO_TARGET_DIR (default: target) under debug/ and release/.
+# Binaries are looked up in $CARGO_TARGET_DIR (default: target) under debug/ and release/,
+# and under x86_64-pc-windows-msvc/{debug,release}/ for cross builds (cargo xwin).
+# Environment: FAIR_PLAY_ROOT overrides the repo root (used by fair-play-check.test.sh to
+# scan a temporary tree; it must contain scripts/fair-play-patterns.txt and -allow.txt).
 # This is a static check of what we write and link. The runtime half of TST-033 (a
 # network capture during a match) is a manual test and is not covered here.
 set -u
 
-root=$(cd "$(dirname "$0")/.." && pwd)
+root=${FAIR_PLAY_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}
 cd "$root" || exit 2
 patterns=scripts/fair-play-patterns.txt
 require_bins=0
@@ -40,6 +43,16 @@ EOF_EX
         [ "$keep" -eq 1 ] && printf '%s\n' "$hit"
     done
     return 0
+}
+
+# Is binary symbol $2 in file $1 covered by a reviewed "symbol" exception (DEC-079)?
+# Entries: symbol <binary basename> <ERE matched against the whole symbol>
+sym_allowed() {
+    base=$(basename "$1")
+    while read -r _ abin are; do
+        if [ "$abin" = "$base" ] && printf '%s\n' "$2" | grep -Eq "^($are)$"; then return 0; fi
+    done < <(grep -Ev '^[[:space:]]*(#|$)' scripts/fair-play-allow.txt | awk '$1 == "symbol"')
+    return 1
 }
 
 rules() { grep -Ev '^[[:space:]]*(#|$)' "$patterns" | awk -v k="$1" '$1 == k'; }
@@ -90,7 +103,8 @@ case $tdir in /*) ;; *) tdir="$root/$tdir" ;; esac
 bins=""
 for prof in debug release; do
     for b in stalemate stalemate-overlay stalemate-fixture-recorder stalemate-model-trainer; do
-        for f in "$tdir/$prof/$b" "$tdir/$prof/$b.exe"; do
+        for f in "$tdir/$prof/$b" "$tdir/$prof/$b.exe" \
+            "$tdir/x86_64-pc-windows-msvc/$prof/$b.exe"; do
             [ -f "$f" ] && bins="$bins$f
 "
         done
@@ -131,6 +145,7 @@ while IFS= read -r f; do
     esac
     if [ -n "$syms" ] && [ -n "$sym_re" ]; then
         for s in $(printf '%s\n' "$syms" | grep -E "$sym_re"); do
+            sym_allowed "$f" "$s" && continue
             report symbol "${f#"$root"/} imports $s"
         done
     fi
