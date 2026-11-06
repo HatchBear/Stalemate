@@ -32,11 +32,12 @@ Lists every non-art asset: config files, the model, prompt templates, UI strings
 Every value marked [ASSUMPTION] in docs 04–09 appears here with that value.
 
 ```toml
-[match_watcher]           # OQ-03: fill from real logs (T-006)
-start    = ""             # regex
-end      = ""             # regex
-match_id = ""             # regex with one capture group
-exit     = ""             # regex
+[match_watcher]           # OQ-03 resolved by T-006 from real logs (DEC-062)
+start    = 'Received Steam datagram ticket for server steamid:\d+ vport -?\d+\. match_id=\d+'  # match server ticket; the hideout ticket says hideout_lobby=
+end      = 'OnGameStateChanged: PostGame \(8\)'                # match decided
+match_id = '\bLobby \d+ for Match (\d+) created'                # one capture group; follows the ticket
+exit     = '\[HostStateManager\] HostStateRequest::Start\(HSR_QUIT\)'  # game closing
+poll_s   = 1              # fallback poll when file notifications miss an event (DEC-058)
 
 [api]
 analytics_per_min   = 160     # 80% of 200
@@ -51,15 +52,19 @@ busy_retry_default_s  = 30    # when a 503 or 429 has no Retry-After
 assets_ttl_s          = -1    # until the patch changes
 client_versions_ttl_s = 3600  # patch check interval
 metadata_ttl_s        = 31536000  # matches are immutable
+live_url_per_hour     = 4     # per-match Broadcast locator LOC-2: 6 req/h per IP published, 80% rounded down (DEC-058)
 
 [broadcast]
 backoff_s           = [2, 4, 8, 16, 32]
 stale_delay_s       = 60      # DEC-050
+request_timeout_s   = 5       # per request to the relay (DEC-058)
 
 [scouting]
 swap_closed_after_s     = 0      # scouting stays hidden until game time passes this. Raise it if a ranked tester finds the swap phase overlaps game time (DEC-047)
 history_window          = 20
 mmr_window              = 20
+mmr_trend_min_points    = 2      # fewer ranked matches in the window shows "not enough data", not a trend of 0 (DEC-051, DEC-061)
+mains_shown             = 5      # heroes listed as mains on the scouting card (FR-SCOUT-003, DEC-065)
 build_sample_matches    = 30
 low_sample_below        = 10
 core_rate               = 0.60
@@ -118,6 +123,7 @@ t8_min_gain             = 0.10
 t9_enemies_dead         = 2
 t9_window_s             = 30
 key_moments             = 5
+api_poll_s              = [60, 120, 300, 600, 1200]   # waits before each API-05 fetch after a match ends (DEC-058)
 dedupe_priority         = ["D-DEATH", "D-FIGHT", "D-OBJ"]
 obj_weights             = { guardian = 1, walker = 2, base = 3 }
 r01_unused_s            = 3
@@ -132,6 +138,21 @@ r08_offplan_count       = 3
 r09_window_s            = 120
 r10_absent_count        = 2
 r11_parry_gap_pp        = 20
+
+[ui]                       # main window (DEC-067)
+flush_ms              = 500    # how often live state is pushed to the window
+item_search_results   = 8      # rows shown in the builder's item search
+secret_timeout_s      = 3      # wait for the system secret store before carrying on without the API key
+
+[builds]                   # community build search (DEC-067)
+community_limit       = 10     # results per search
+community_sort        = "favorites"  # API sort key; the API ranks by favorites, not matches
+
+[diagnostics]              # FR-SET-005 (DEC-070)
+enabled_default       = true   # Alpha builds; the tester can turn it off
+keep_days             = 14
+perf_sample_s         = 10     # during Live only
+max_file_mb           = 20
 
 [overlay]
 max_redraw_hz           = 1
@@ -204,9 +225,9 @@ Fixed technical instructions in every template:
 
 | Set | Contents | Minimum | Source |
 |---|---|---|---|
-| FX-BC | The developer's own matches as normalized `ParserEvent` lines (`tests/fixtures/fx-bc/<match>/events.jsonl` plus `meta.json`), chat stripped. Raw `.bcast` files are never committed (DEC-056) | 20 matches | PRG-27 |
+| FX-BC | The developer's own matches as normalized `ParserEvent` lines (`tests/fixtures/fx-bc/<match>/events.jsonl` plus `meta.json`), chat stripped, other players' names and Account IDs replaced by consistent pseudonyms (DEC-060). Raw `.bcast` files and raw relay fragments are never committed (DEC-056) | 20 matches | PRG-27 |
 | FX-DEM | Replay `.dem` files of the same matches | 5 matches | Developer |
-| FX-API | Recorded deadlock-api responses for those matches | All calls made | PRG-27 |
+| FX-API | Recorded deadlock-api responses for those matches, pseudonymized the same way as FX-BC (DEC-060) | All calls made | PRG-27 |
 | FX-LABEL | Hand-labeled Build Profiles (TST-024) and build matches at 15:00 (TST-042) | 30 profiles, 100 matches | Developer |
 | FX-PATCH | One recording per new patch | 1 per patch | PRG-27 |
 

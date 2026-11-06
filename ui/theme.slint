@@ -1,17 +1,19 @@
 import "../assets/fonts/jost/Jost-Variable.ttf";
 import "../assets/fonts/noto-sans/NotoSans-Variable.ttf";
+import "../assets/fonts/barlow-condensed/BarlowCondensed-ExtraBold.ttf";
 
-// Palette from doc 09 CD-03 (DEC-046). Do not add colours here without a decision-log entry.
+// Palette from doc 09 CD-03 (DEC-046) and the main-window style of DEC-066.
+// Do not add colours here without a decision-log entry. Contrast ratios are in doc 09.
 export global Theme {
     // Base and surfaces
     out property <color> base: #222021;
     out property <color> panel: #2f4442;
     out property <color> raised: #3f5d4d;
-    // Secondary text: use on `base` only (4.83:1).
+    // Secondary text: use on `base` or `edge` only (4.83:1 on base).
     out property <color> secondary: #72947f;
     // All primary text and all borders.
     out property <color> text: #efdebf;
-    // Error and the warning tiers.
+    // Error and the warning tiers. Not for text on paper: use cream text and an icon there.
     out property <color> warn: #ee5945;
     // Teams
     out property <color> amber: #D4860B;
@@ -21,7 +23,48 @@ export global Theme {
     out property <color> sapphire-text: #FFFFFF;
     out property <color> sapphire-light: #BDCBFF;
 
-    // Fonts (CD-04): Jost for headings and labels, Noto Sans for body text and numbers.
+    // DEC-066 backdrop
+    out property <color> edge: #161414;
+    out property <color> glow: #3a2b20;
+    // Mint: page titles, and the brush-stroke highlight (text on it is `mint-ink`).
+    out property <color> mint: #5fd69a;
+    out property <color> mint-ink: #0f2a1c;
+    // Paper panels
+    out property <color> paper: #45433d;
+    out property <color> paper-muted: #d9cfbd;
+    out property <color> paper-divider: #5c584f;
+    // Keycap chips (ink text is `base`)
+    out property <color> keycap: #d9d2c3;
+    // Price-tag stamps
+    out property <color> parchment: #d8c49c;
+    out property <color> ink: #2b2118;
+    // Item category colours (DEC-068), from the shop tabs. For items only: pages, navigation and
+    // sections use mint. Weapon and Vitality chips take `edge` text; Spirit takes cream text.
+    out property <color> cat-weapon: #e8b417;
+    out property <color> cat-vitality: #8cc63f;
+    out property <color> cat-spirit: #6b3fa0;
+    // Spirit purple as text on `base` (the filled purple takes cream text).
+    out property <color> cat-spirit-text: #b48be0;
+    // Keyboard focus ring.
+    out property <color> mustard: #e8b417;
+    // Destructive stamp (DEC-074): cream text, 6.43:1.
+    out property <color> danger: #8f2621;
+
+    // DEC-074 second pass. Dark team fills with light text (amber-light, sapphire-light).
+    out property <color> amber-dark: #6F3806;
+    out property <color> sapphire-dark: #243265;
+    // Item tile art gradients: top and bottom of each category (the top is also the tab colour).
+    out property <color> cat-weapon-low: #b9850c;
+    out property <color> cat-vitality-low: #5f9128;
+    out property <color> cat-spirit-high: #8e54c9;
+    out property <color> cat-spirit-low: #5a2f8c;
+    // Secondary button slab, and the placeholder text in inputs (7.09:1 on `edge`).
+    out property <color> slab: #1e2122;
+    out property <color> placeholder: #a9a08f;
+
+    // Fonts (CD-04, DEC-066): Barlow Condensed for titles and top-level nav (uppercase),
+    // Jost for headings and UI labels, Noto Sans for body text and numbers.
+    out property <string> display-font: "Barlow Condensed";
     out property <string> heading-font: "Jost";
     out property <string> body-font: "Noto Sans";
 

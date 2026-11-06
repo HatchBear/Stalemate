@@ -61,7 +61,14 @@ pub mod haste_source {
     }
 }
 
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    path::PathBuf,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 pub use async_trait::async_trait;
 use bytes::Bytes;
@@ -197,6 +204,38 @@ pub fn spawn(
     tokio::spawn(run(match_id, deps, tx))
 }
 
+/// Cumulative error counts for one client run (FR-SET-005 diagnostics). Clones share the counters;
+/// read them any time, also after the task has ended.
+#[derive(Debug, Clone, Default)]
+pub struct BroadcastStats {
+    fragment_errors: Arc<AtomicU64>,
+    connect_errors: Arc<AtomicU64>,
+}
+
+impl BroadcastStats {
+    /// Streams that failed while reading or parsing fragments ([`SessionError::Stream`] and
+    /// [`SessionError::WrongMatch`] from a running session), counted once each, over all reconnects.
+    pub fn fragment_errors(&self) -> u64 {
+        self.fragment_errors.load(Ordering::Relaxed)
+    }
+
+    /// Failed attempts to locate or open a connection.
+    pub fn connect_errors(&self) -> u64 {
+        self.connect_errors.load(Ordering::Relaxed)
+    }
+}
+
+/// [`spawn`], plus a handle to the error counters for this run.
+pub fn spawn_with_stats(
+    match_id: MatchId,
+    deps: BroadcastDeps,
+    tx: mpsc::Sender<BroadcastEvent>,
+) -> (JoinHandle<BroadcastOutcome>, BroadcastStats) {
+    let stats = BroadcastStats::default();
+    let h = tokio::spawn(run_with_stats(match_id, deps, tx, stats.clone()));
+    (h, stats)
+}
+
 async fn emit(tx: &mpsc::Sender<BroadcastEvent>, kind: BroadcastKind) -> bool {
     tx.send(BroadcastEvent {
         received_at: OffsetDateTime::now_utc(),
@@ -220,6 +259,16 @@ pub async fn run(
     deps: BroadcastDeps,
     tx: mpsc::Sender<BroadcastEvent>,
 ) -> BroadcastOutcome {
+    run_with_stats(match_id, deps, tx, BroadcastStats::default()).await
+}
+
+/// [`run`], counting errors into `stats`.
+pub async fn run_with_stats(
+    match_id: MatchId,
+    deps: BroadcastDeps,
+    tx: mpsc::Sender<BroadcastEvent>,
+    stats: BroadcastStats,
+) -> BroadcastOutcome {
     let backoff = deps.rules.backoff_s.clone();
     let mut dedup = Dedup::default();
     let mut recorder = deps
@@ -233,9 +282,13 @@ pub async fn run(
         let mut wrong_match = false;
         let mut hard_stop = false;
         match deps.locator.locate(match_id).await {
-            Err(e) => tracing::debug!("broadcast locate failed: {e}"),
+            Err(e) => {
+                stats.connect_errors.fetch_add(1, Ordering::Relaxed);
+                tracing::debug!("broadcast locate failed: {e}");
+            }
             Ok(url) => match deps.connector.connect(&url, match_id).await {
                 Err(e) => {
+                    stats.connect_errors.fetch_add(1, Ordering::Relaxed);
                     tracing::debug!("broadcast connect failed: {e}");
                     hard_stop = matches!(e, SessionError::Unsupported);
                     wrong_match = matches!(e, SessionError::WrongMatch);
@@ -249,6 +302,7 @@ pub async fn run(
                             Ok(Some(s)) => s,
                             Ok(None) => break,
                             Err(e) => {
+                                stats.fragment_errors.fetch_add(1, Ordering::Relaxed);
                                 tracing::debug!("broadcast stream failed: {e}");
                                 wrong_match = matches!(e, SessionError::WrongMatch);
                                 break;

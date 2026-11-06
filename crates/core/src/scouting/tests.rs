@@ -166,9 +166,36 @@ fn mmr_trend_uses_recent_ranked_oldest_first() {
     // Ten matches of +10 each; the window keeps only the newest 4 (oldest dropped).
     let h: Vec<_> = (0..10).map(|i| hist(i, 1, true, Some(10))).collect();
     // Series 0,10,20,30,40: slope 10 per match -> 100 per 10.
-    assert!((mmr_trend(&h, 4).unwrap() - 100.0).abs() < 1e-9);
+    assert!((mmr_trend(&h, 4, 2).unwrap() - 100.0).abs() < 1e-9);
     let none: Vec<_> = (0..5).map(|i| hist(i, 1, true, None)).collect();
-    assert_eq!(mmr_trend(&none, 20), None);
+    assert_eq!(mmr_trend(&none, 20, 2), None);
+}
+
+#[test]
+fn mmr_trend_needs_two_ranked_matches() {
+    // DEC-051: one ranked match is "not enough data", not a trend of 0.
+    assert_eq!(mmr_trend(&[], 20, 2), None);
+    let one = vec![hist(0, 1, true, Some(10))];
+    assert_eq!(mmr_trend(&one, 20, 2), None);
+    // Unranked matches in the window do not count.
+    let mixed = vec![hist(0, 1, true, Some(10)), hist(1, 1, true, None)];
+    assert_eq!(mmr_trend(&mixed, 20, 2), None);
+    let two = vec![hist(0, 1, true, Some(10)), hist(1, 1, true, Some(10))];
+    assert!(mmr_trend(&two, 20, 2).is_some());
+}
+
+#[test]
+fn mmr_trend_minimum_comes_from_config() {
+    // DEC-061: the minimum is a parameter, so a higher one turns a trend into "not enough data".
+    let two = vec![hist(0, 1, true, Some(10)), hist(1, 1, true, Some(10))];
+    assert!(mmr_trend(&two, 20, 2).is_some());
+    assert_eq!(mmr_trend(&two, 20, 3), None);
+    let three = vec![
+        hist(0, 1, true, Some(10)),
+        hist(1, 1, true, Some(10)),
+        hist(2, 1, true, Some(10)),
+    ];
+    assert!(mmr_trend(&three, 20, 3).is_some());
 }
 
 #[test]
@@ -265,4 +292,34 @@ fn fp_10_hidden_at_zero_visible_at_one() {
     let r = rules();
     assert!(!scouting_visible(0, &r));
     assert!(scouting_visible(1, &r));
+}
+
+#[tokio::test(start_paused = true)]
+async fn several_bots_each_get_a_hero_only_card() {
+    let roster = vec![entry(1, 101, 0), entry(0, 150, 1), entry(0, 151, 1)];
+    let mock = Arc::new(Mock::default());
+    let (tx, mut rx) = mpsc::unbounded_channel();
+    ScoutingService::new(mock.clone())
+        .scout(&roster, 1, &rules(), tx)
+        .await;
+    let mut heroes = Vec::new();
+    while let Ok(c) = rx.try_recv() {
+        assert_eq!(c.account_id, 0);
+        assert_eq!(c.state, CardState::HeroOnly);
+        heroes.push(c.hero_id);
+    }
+    assert_eq!(heroes, vec![150, 151]);
+}
+
+#[test]
+fn mains_list_length_comes_from_config() {
+    let mut r = rules();
+    assert_eq!(r.scouting.mains_shown, 5);
+    r.scouting.mains_shown = 3;
+    let rows: Vec<PlayerHeroStats> = (1..=6).map(|h| hs(1, h, 10 * h, h)).collect();
+    let refs: Vec<&PlayerHeroStats> = rows.iter().collect();
+    let mut c = ScoutingCard::new(&entry(1, 1, 0), CardState::Ready);
+    apply_hero_stats(&mut c, &refs, r.scouting.mains_shown as usize);
+    assert_eq!(c.mains.len(), 3);
+    assert_eq!(c.mains[0].hero_id, 6);
 }

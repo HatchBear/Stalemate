@@ -19,6 +19,8 @@ pub enum BuilderError {
     NoHero,
     NoName,
     Empty,
+    /// The build couldn't be stored (the item list isn't loaded, or the database refused it).
+    SaveFailed,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -140,6 +142,7 @@ mod tests {
         NamedOption {
             id,
             name: format!("Item {id}"),
+            category: None,
         }
     }
 
@@ -197,6 +200,7 @@ mod tests {
         d.hero = Some(NamedOption {
             id: 1,
             name: "Hero 1".into(),
+            category: None,
         });
         assert_eq!(d.validate(), Err(BuilderError::NoName));
         d.name = "My build".into();

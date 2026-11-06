@@ -1,11 +1,28 @@
 [package]
 name = "stalemate-fixture-recorder"
+description = "Developer tool (PRG-27): records the author's own matches as test fixtures (DATA-008)."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+[lib]
+name = "stalemate_fixture_recorder"
+path = "src/lib.rs"
+
 [[bin]]
 name = "stalemate-fixture-recorder"
 path = "src/main.rs"
+
+[dependencies]
+stalemate-core.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "io-util", "fs", "time", "sync"] }
+# Same features as stalemate-core: plain GETs to the relay, gzip decoded before saving.
+reqwest = { workspace = true, features = ["rustls", "gzip"] }
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

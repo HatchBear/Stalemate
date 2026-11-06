@@ -16,7 +16,7 @@ Breaks the work into Alpha, Beta and v1 milestones (DEC-012), with tasks, depend
 
 | Milestone | Goal | Platforms |
 |---|---|---|
-| **Alpha** | Prove the data pipeline end to end: match detected, Broadcast consumed and recorded, basic scouting, enemy board and Purchase Log, stats-only Review, build import and manual builder. Main window only | Flatpak on KDE Plasma 6 Wayland |
+| **Alpha** | Prove the data pipeline end to end: match detected, Broadcast consumed and recorded, basic scouting, enemy board and Purchase Log, stats-only Review, build import and manual builder. Main window only | Flatpak on KDE Plasma 6 Wayland, plus native Linux packages (DEC-064); Windows 11 main window, no overlay (DEC-063) |
 | **Beta** | All core intelligence: Build Profiles with the Counter-buy filter, Build Matcher, Projector, phase-aware counter items, Build Check, the overlay, and the chess.com-style Review with rules and LLM | Flatpak on KDE Plasma; Windows 11 |
 | **v1** | Everything else in [02](02-requirements.md), final art, privacy policy, Flathub stable | Plus Windows 10; best effort on other Linux desktops |
 
@@ -65,8 +65,11 @@ flowchart LR
 | T-016 | Stats-only Review: match record, lane grade, soul sources                                                                                                                                                                     | T-013        | 4      | FR-REV-001, 003, 004                    |
 | T-017 | Main window: Home, Scouting, Live (enemy board, Purchase Log), Reviews, Builds, Settings (PRG-20)                                                                                                                             | T-012, T-014 | 6      | FR-UI-001, FR-LIVE-001                  |
 | T-018 | First-run setup for `-condebug`                                                                                                                                                                                               | T-006        | 2      | FR-SET-003                              |
+| T-004a | Native Linux packages: AUR `PKGBUILD`, `.deb`, `.rpm`, AppImage, tarball; `linux-native.yml`; container install smoke tests (after the Flatpak, DEC-064) | T-004, T-017 | 3 | NFR-PLAT-005, TST-094 |
+| T-028a | Windows Alpha: Steam and log paths, keyring, MSI and portable zip, Windows CI (main window only; split from T-028 by DEC-063) | T-004, T-005 | 3 | NFR-PLAT-003 (Alpha part) |
+| T-019a | Alpha diagnostics file: collection, "Mark a problem", the saved zip and its privacy scan (FR-SET-005, DEC-070) | T-017 | 3 | FR-SET-005, TST-108 |
 | T-019 | Alpha QA and release                                                                                                                                                                                                          | All above    | 3      | [16](16-testing-and-qa.md)              |
-|       | **Alpha total**                                                                                                                                                                                                               |              | **61** |                                         |
+|       | **Alpha total**                                                                                                                                                                                                               |              | **70** |                                         |
 
 ### Beta tasks
 
@@ -80,7 +83,7 @@ flowchart LR
 | T-025 | Counter recommender and recommendation history (PRG-12) | T-023 | 5 | FR-LIVE-005 to 008, 014, FR-UI-006 |
 | T-026 | Build Check (PRG-13); read the selected build from the Broadcast | T-025 | 2 | FR-LIVE-009, FR-BUILD-004 |
 | T-027 | Overlay on KDE (PRG-22) and IPC (PRG-24) | CD-02 to CD-06, T-025 | 8 | FR-UI-002 to 004, 007, 008 |
-| T-028 | Windows port: paths, Win32 overlay, MSI | T-027 | 8 | FR-UI-005, NFR-PLAT-003 |
+| T-028 | Windows port: Win32 overlay (paths and MSI moved to T-028a, DEC-063) | T-027, T-028a | 5 | FR-UI-005, NFR-PLAT-003 |
 | T-029 | .NET fallback parser (PRG-21) | T-013 | 5 | NFR-REL-002 |
 | T-030 | Asset pipeline and placeholders (`just export-assets`) | T-001 | 2 | TST-110 |
 | T-031 | Win-probability model (PRG-15) and trainer (PRG-26) | T-009 | 6 | SM-6 |
@@ -117,13 +120,13 @@ flowchart LR
 
 **Tasks only the author can do (DEC-044):** T-006, T-007, T-013, the hand-labeling in T-020 and T-023, and supplying reference screenshots of the in-game UI (kept out of the repository). The AI team waits on these.
 
-**Overall estimate:** about 180 person-days (61 Alpha, 81 Beta, 38 v1), plus a 30% contingency, for about 234 [ASSUMPTION] (DEC-034). No target dates are set; this roadmap uses effort only.
+**Overall estimate:** about 180 person-days (70 Alpha, 78 Beta, 38 v1), plus a 30% contingency, for about 234 [ASSUMPTION] (DEC-034). No target dates are set; this roadmap uses effort only.
 
 ### Exit criteria
 
 | Milestone | Exit when |
 |---|---|
-| Alpha | All Alpha-phase Must requirements pass their TSTs on KDE Plasma (native and Flatpak Steam); TST-030 passes on 20 fixtures; OQ-02, OQ-03, OQ-04 and OQ-05 resolved |
+| Alpha | All Alpha-phase Must requirements pass their TSTs on KDE Plasma (native and Flatpak Steam) and on Windows 11 (DEC-063); TST-030 passes on 20 fixtures; OQ-02, OQ-03, OQ-04 and OQ-05 resolved |
 | Beta | All Beta-phase Must requirements pass; SM-3 to SM-8 met; overlay passes TST-090 and TST-091; 2 weeks of field testing with no open S1 bugs |
 | v1 | Every Must and Should requirement passes; no placeholders (TST-110); privacy policy live; Flathub stable published |
 

@@ -748,3 +748,52 @@ async fn tst_013_one_simulated_hour_never_exceeds_a_published_limit() {
         }
     }
 }
+
+#[tokio::test]
+async fn rate_limit_waits_count_retry_after_and_cooldown_refusals() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(503).insert_header("Retry-After", "7"))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let c = client(&server);
+    assert_eq!(c.rate_limit_waits(), 0);
+    c.match_history(1).await.unwrap_err();
+    assert_eq!(c.rate_limit_waits(), 1, "the 503");
+    c.match_history(1).await.unwrap_err();
+    assert_eq!(c.rate_limit_waits(), 2, "refused while cooling down");
+}
+
+#[tokio::test]
+async fn rate_limit_waits_count_bucket_waits() {
+    let server = MockServer::start().await;
+    let clock = FakeRelativeClock::default();
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
+        .mount(&server)
+        .await;
+    let c = client_with(&server, &rules(), Some(clock));
+    for i in 0..10u32 {
+        let _: Vec<serde_json::Value> = c
+            .get_analytics(
+                "API-07",
+                "/v1/analytics/item-stats",
+                &[("n", i.to_string())],
+            )
+            .await
+            .unwrap();
+    }
+    assert_eq!(c.rate_limit_waits(), 0, "the burst goes out unthrottled");
+    for i in 10..400u32 {
+        let _: Vec<serde_json::Value> = c
+            .get_analytics(
+                "API-07",
+                "/v1/analytics/item-stats",
+                &[("n", i.to_string())],
+            )
+            .await
+            .unwrap();
+    }
+    assert!(c.rate_limit_waits() > 100, "{}", c.rate_limit_waits());
+}

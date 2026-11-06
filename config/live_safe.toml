@@ -1,14 +1,16 @@
 # Fields from 03-fair-play-and-compliance.md. Each was verified in-game by the author (T-007, 2026-11-05).
 # Each stays switchable: remove a name to turn that field off. Unknown names are rejected.
 # LS-01, LS-03, LS-04, LS-10, LS-12 and LS-14 are always on (confirmed).
-# LS-08 enemy souls are enemies only. Allies' souls are not on the whitelist, so they never appear.
+# LS-04, LS-05 and LS-08 cover every player, allies and enemies (DEC-059). Items are shown for every
+# player through LS-04 (always on), so LS-05 is redundant today but stays switchable.
+# The build an enemy selected at game start is not on the whitelist, so it never appears.
 # LS-09 lane is shown for every player, not only lane opponents (T-007 answer).
 enabled = [
   "Ls02Name",
-  "Ls05AllyItems",
+  "Ls05Items",
   "Ls06Kda",
   "Ls07Level",
-  "Ls08EnemySouls",
+  "Ls08Souls",
   "Ls09Lane",
   "Ls11Objectives",
   "Ls13Flex",

@@ -45,12 +45,18 @@ haste = { workspace = true, features = ["broadcast", "deadlock"], optional = tru
 # Raw fragment bytes (MIT). `http` is only for haste's HttpClient trait types (MIT/Apache-2.0).
 bytes = "1"
 http = { version = "1", optional = true }
+# Diagnostics zip (FR-SET-005). MIT. Deflate only, with the pure-Rust zlib-rs backend: no bzip2, zstd or lzma C code.
+zip = { version = "8", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 oo7 = { workspace = true, features = ["tokio", "native_crypto"] }
 
 [target.'cfg(windows)'.dependencies]
 keyring = { workspace = true, features = ["v1", "windows-native-keyring-store"] }
+# Steam path from the registry (MIT/Apache-2.0). Only read, never written (NFR-PLAT-003).
+windows-registry = "0.6"
+# Own-process CPU and memory for the diagnostics file (MIT/Apache-2.0).
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Threading", "Win32_System_ProcessStatus"] }
 
 [dev-dependencies]
 tempfile.workspace = true

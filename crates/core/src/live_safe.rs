@@ -15,14 +15,15 @@ use crate::types::{AccountId, GameSecs, HeroId, ItemId, MatchId};
 
 /// Whitelist field IDs that needed in-game verification. The author verified all of them (T-007,
 /// 2026-11-05), but each stays switchable. LS-01, LS-03, LS-04, LS-10, LS-12 and LS-14 are always on.
-/// Allies' souls are not on the whitelist at all, so no variant exists for them.
+/// LS-04, LS-05 and LS-08 cover every player, allies and enemies (DEC-059). The build an enemy
+/// selected at game start is not on the whitelist, so no variant and no output field exists for it.
 #[derive(Hash, Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Debug, Deserialize)]
 pub enum Ls {
     Ls02Name,
-    Ls05AllyItems,
+    Ls05Items,
     Ls06Kda,
     Ls07Level,
-    Ls08EnemySouls,
+    Ls08Souls,
     Ls09Lane,
     Ls11Objectives,
     Ls13Flex,
@@ -31,10 +32,10 @@ pub enum Ls {
 impl Ls {
     pub const ALL: [Ls; 8] = [
         Ls::Ls02Name,
-        Ls::Ls05AllyItems,
+        Ls::Ls05Items,
         Ls::Ls06Kda,
         Ls::Ls07Level,
-        Ls::Ls08EnemySouls,
+        Ls::Ls08Souls,
         Ls::Ls09Lane,
         Ls::Ls11Objectives,
         Ls::Ls13Flex,
@@ -89,7 +90,7 @@ pub struct PlayerLs {
     pub kda: Option<(u16, u16, u16)>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub level: Option<u8>,
-    /// LS-08: enemies only, never allies or the user (own souls are in `self`, LS-12).
+    /// LS-08: every player (DEC-059). The user's own souls are also in `self` (LS-12).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub souls: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -133,31 +134,21 @@ pub struct LiveSafeState {
 }
 
 pub fn project(gs: &GameState, wl: &Whitelist) -> Vec<PlayerLs> {
-    let my_team = gs
-        .players
-        .iter()
-        .find(|p| p.account_id == gs.me)
-        .map(|p| p.team);
     gs.players
         .iter()
         .map(|p| {
-            // Fail closed: if the user's team is unknown, nobody counts as an enemy.
-            let is_enemy = my_team.is_some_and(|t| t != p.team);
-            let is_me = p.account_id == gs.me;
             PlayerLs {
                 account_id: p.account_id,
                 team: p.team,
                 hero_id: p.hero_id,
                 name: wl.has(Ls::Ls02Name).then(|| p.name.clone()),
-                // LS-04: enemy items always. LS-12: own items always. LS-05: other allies only if verified.
-                items: (is_enemy || is_me || wl.has(Ls::Ls05AllyItems)).then(|| p.items.clone()),
+                // LS-04 (always on) covers items for every player, so LS-05 adds nothing today (DEC-059).
+                // The switch stays in case the author narrows LS-04 later.
+                items: Some(p.items.clone()),
                 kda: wl.has(Ls::Ls06Kda).then_some(p.kda),
                 level: wl.has(Ls::Ls07Level).then_some(p.level),
-                souls: if is_enemy && wl.has(Ls::Ls08EnemySouls) {
-                    p.souls
-                } else {
-                    None
-                },
+                // LS-08: every player (DEC-059).
+                souls: if wl.has(Ls::Ls08Souls) { p.souls } else { None },
                 // LS-09: verified in-game for every player, not only lane opponents (T-007).
                 lane: if wl.has(Ls::Ls09Lane) { p.lane } else { None },
             }
@@ -214,7 +205,7 @@ pub fn allowed_keys(wl: &Whitelist) -> BTreeSet<String> {
         "players.account_id",
         "players.team",
         "players.hero_id",
-        "players.items", // LS-04 enemies, LS-12 self; allies gated in `project`
+        "players.items", // LS-04 every player (DEC-059)
         "self",
         "self.souls",
         "self.items",
@@ -231,7 +222,7 @@ pub fn allowed_keys(wl: &Whitelist) -> BTreeSet<String> {
     add(wl.has(Ls::Ls02Name), &["players.name"]);
     add(wl.has(Ls::Ls06Kda), &["players.kda"]);
     add(wl.has(Ls::Ls07Level), &["players.level"]);
-    add(wl.has(Ls::Ls08EnemySouls), &["players.souls"]);
+    add(wl.has(Ls::Ls08Souls), &["players.souls"]);
     add(wl.has(Ls::Ls09Lane), &["players.lane"]);
     add(wl.has(Ls::Ls13Flex), &["self.flex_slots"]);
     add(
@@ -356,15 +347,11 @@ mod tests {
         let v = json(&gs, &Whitelist::default());
         for p in v["players"].as_array().unwrap() {
             let keys: BTreeSet<_> = p.as_object().unwrap().keys().cloned().collect();
-            let team = p["team"].as_u64().unwrap();
-            let me_or_enemy = team == 1 || p["account_id"] == 1;
-            let mut want: BTreeSet<String> = ["account_id", "team", "hero_id"]
+            // LS-04: items for every player, always (DEC-059).
+            let want: BTreeSet<String> = ["account_id", "team", "hero_id", "items"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect();
-            if me_or_enemy {
-                want.insert("items".into());
-            }
             assert_eq!(keys, want, "player {p}");
         }
         assert!(v.get("objectives").is_none());
@@ -373,24 +360,22 @@ mod tests {
     }
 
     #[test]
-    fn own_items_shown_but_other_allies_hidden_without_ls05() {
+    fn items_shown_for_every_player_without_ls05() {
         let gs = state();
         let players = project(&gs, &Whitelist::default());
-        let get = |id| players.iter().find(|p| p.account_id == id).unwrap();
-        assert!(get(1).items.is_some());
-        assert!(get(2).items.is_none());
-        assert!(get(3).items.is_some());
-        let wl = Whitelist([Ls::Ls05AllyItems].into());
-        assert!(project(&gs, &wl).iter().all(|p| p.items.is_some()));
+        assert!(players.iter().all(|p| p.items.is_some()));
+        let wl = Whitelist([Ls::Ls05Items].into());
+        assert_eq!(project(&gs, &wl), players);
     }
 
     #[test]
-    fn unknown_team_fails_closed() {
-        let mut gs = state();
-        gs.me = 999;
-        assert!(project(&gs, &Whitelist::default())
-            .iter()
-            .all(|p| p.items.is_none()));
+    fn no_field_for_enemy_starting_build() {
+        let gs = state();
+        let all = Whitelist(Ls::ALL.iter().copied().collect());
+        let s = serde_json::to_string(&json(&gs, &all)).unwrap();
+        for bad in ["build", "selected", "start_build"] {
+            assert!(!s.contains(bad), "{bad} in {s}");
+        }
     }
 
     #[test]
@@ -508,6 +493,7 @@ mod tests {
         let bad = check_payload(&v, &wl).unwrap_err();
         assert!(bad.contains(&"players.position".to_string()));
         assert!(bad.contains(&"players.souls".to_string()));
+        assert!(!bad.contains(&"players.items".to_string()));
         assert!(bad.contains(&"chat".to_string()));
         // A gated key is rejected when the whitelist doesn't enable it.
         let v = serde_json::json!({"players": [{"kda": [1,2,3]}]});
@@ -524,19 +510,19 @@ mod tests {
     }
 
     #[test]
-    fn ls08_enemy_souls_only_for_enemies() {
+    fn ls08_souls_for_every_player() {
         let mut gs = state();
         for i in 1..=7u32 {
             gs.set_souls(i, Some(i * 1000));
         }
-        let on = Whitelist([Ls::Ls08EnemySouls].into());
-        let players = project(&gs, &on);
-        for p in &players {
-            if p.team == 1 {
-                assert_eq!(p.souls, Some(p.account_id * 1000), "enemy {}", p.account_id);
-            } else {
-                assert!(p.souls.is_none(), "ally or self {}", p.account_id);
-            }
+        let on = Whitelist([Ls::Ls08Souls].into());
+        for p in &project(&gs, &on) {
+            assert_eq!(
+                p.souls,
+                Some(p.account_id * 1000),
+                "player {}",
+                p.account_id
+            );
         }
         let v = json(&gs, &on);
         check_payload(&v, &on).unwrap();
@@ -554,20 +540,9 @@ mod tests {
     }
 
     #[test]
-    fn ls08_unknown_team_fails_closed() {
-        let mut gs = state();
-        gs.me = 999;
-        for i in 1..=7u32 {
-            gs.set_souls(i, Some(1));
-        }
-        let on = Whitelist([Ls::Ls08EnemySouls].into());
-        assert!(project(&gs, &on).iter().all(|p| p.souls.is_none()));
-    }
-
-    #[test]
     fn loader_rejects_unknown_names() {
         assert!(Whitelist::from_toml_str("enabled = [\"Ls08AllySouls\"]").is_err());
-        assert!(Whitelist::from_toml_str("enabled = [\"Ls08EnemySouls\"]").is_ok());
+        assert!(Whitelist::from_toml_str("enabled = [\"Ls08Souls\"]").is_ok());
         assert!(Whitelist::from_toml_str("enabled = [\"Ls02Name\"]\nextra = 1").is_err());
         assert!(Whitelist::from_toml_str("").unwrap().0.is_empty());
         assert!(Whitelist::from_toml_str("enabled = [\"Ls06Kda\", \"Ls13Flex\"]").is_ok());
@@ -662,29 +637,11 @@ mod tests {
             let present = key_paths(&v);
             prop_assert!(present.is_subset(&allowed), "extra: {:?}", present.difference(&allowed).collect::<Vec<_>>());
             prop_assert!(check_payload(&v, &wl).is_ok());
-            // LS-08: souls only ever on enemies, never on allies or the user's own entry.
-            let my_team = gs.players.iter().find(|p| p.account_id == me).map(|p| p.team);
+            // LS-04: items for every player. LS-08: souls for every player only when enabled.
             for p in project(&gs, &wl) {
+                prop_assert!(p.items.is_some());
                 if p.souls.is_some() {
-                    prop_assert!(wl.has(Ls::Ls08EnemySouls));
-                    prop_assert!(p.account_id != me);
-                    prop_assert!(my_team.is_some_and(|t| t != p.team));
-                }
-            }
-            if let Some(arr) = v["players"].as_array() {
-                for pj in arr {
-                    if pj.get("souls").is_some() {
-                        prop_assert!(pj["account_id"] != me && pj["team"] != my_team.unwrap_or(99));
-                    }
-                }
-            }
-            // Without the ally-items field, only the user and enemies carry items.
-            if !wl.has(Ls::Ls05AllyItems) {
-                let my_team = gs.players.iter().find(|p| p.account_id == me).map(|p| p.team);
-                for p in project(&gs, &wl) {
-                    if p.items.is_some() {
-                        prop_assert!(p.account_id == me || my_team.is_some_and(|t| t != p.team));
-                    }
+                    prop_assert!(wl.has(Ls::Ls08Souls));
                 }
             }
         }

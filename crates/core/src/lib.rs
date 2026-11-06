@@ -7,6 +7,7 @@ pub mod build_check;
 pub mod build_matcher;
 pub mod builds;
 pub mod counter;
+pub mod diagnostics;
 pub mod game_state;
 pub mod ipc;
 pub mod live_safe;

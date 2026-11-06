@@ -1,7 +1,8 @@
+import { ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { Icon, IconKind } from "icons.slint";
-import { AppState, Tr } from "types.slint";
-import { HText, BText, Panel, Btn, IconText } from "widgets.slint";
+import { AppState, Tr, BuildsTab } from "types.slint";
+import { HText, BText, DText, Panel, Btn, IconText, Backdrop, KeyHint } from "widgets.slint";
 import { HomeView } from "views/home.slint";
 import { ScoutingView } from "views/scouting.slint";
 import { LiveView } from "views/live.slint";
@@ -13,17 +14,30 @@ import { SetupPanel } from "views/setup.slint";
 export * from "types.slint";
 export { Theme } from "theme.slint";
 
+// A left-menu item like the game's settings menu: big uppercase display type. The selected
+// item sits on a hand-painted mint brush stroke. No per-page colours (DEC-068).
 component NavItem inherits Rectangle {
     in property <string> label;
     in property <bool> selected;
     callback clicked();
-    min-height: 2.4rem;
-    background: root.selected || area.has-hover || fs.has-focus ? Theme.raised : Theme.panel;
-    border-width: fs.has-focus ? 2px : 1px;
-    border-color: Theme.text;
+    min-height: 2.7rem;
     accessible-role: tab;
     accessible-label: root.label;
+    accessible-checked: root.selected;
     accessible-action-default => { root.clicked(); }
+
+    if root.selected: Image {
+        x: -0.6rem;
+        width: parent.width + 1rem;
+        height: 100%;
+        source: @image-url("../assets/ui/brush.png");
+        image-fit: fill;
+    }
+    Rectangle {
+        border-width: fs.has-focus ? 3px : 0px;
+        border-color: Theme.mustard;
+        border-radius: 0.3rem;
+    }
     fs := FocusScope {
         key-pressed(e) => {
             if (e.text == Key.Return || e.text == " ") {
@@ -39,15 +53,71 @@ component NavItem inherits Rectangle {
             }
         }
         HorizontalLayout {
-            padding-left: 0.75rem;
+            padding-left: 1.1rem;
             padding-right: 0.5rem;
-            spacing: 0.5rem;
-            // A bar marks the selected item, so selection is not colour alone.
-            Rectangle {
-                width: 0.25rem;
-                background: root.selected ? Theme.text : transparent;
+            DText {
+                text: Tr.upper(root.label);
+                color: root.selected ? Theme.mint-ink : area.has-hover ? Theme.mint : Theme.text;
+                font-size: 2rem;
+                vertical-alignment: center;
+                overflow: elide;
             }
-            HText { text: root.label; vertical-alignment: center; font-size: 1.0625rem; wrap: no-wrap; }
+        }
+    }
+}
+
+// A sub-view of the active page, like the game's settings menu (DEC-074): small Jost under the
+// page name. The picked one carries a marker and bold type, so it is not colour alone.
+component NavSub inherits Rectangle {
+    in property <string> label;
+    in property <bool> selected;
+    callback clicked();
+    min-height: 1.6rem;
+    accessible-role: tab;
+    accessible-label: root.label;
+    accessible-checked: root.selected;
+    accessible-action-default => { root.clicked(); }
+
+    Rectangle {
+        border-width: fs.has-focus ? 3px : 0px;
+        border-color: Theme.mustard;
+        border-radius: 0.3rem;
+    }
+    fs := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Return || e.text == " ") {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+        area := TouchArea {
+            clicked => {
+                fs.focus();
+                root.clicked();
+            }
+        }
+        HorizontalLayout {
+            padding-left: 1.2rem;
+            spacing: 0.5rem;
+            Path {
+                width: 0.45rem;
+                height: 0.6rem;
+                y: (parent.height - self.height) / 2;
+                viewbox-width: 6;
+                viewbox-height: 8;
+                fill: root.selected ? Theme.mint : transparent;
+                commands: "M 0 0 L 6 4 L 0 8 Z";
+            }
+            HText {
+                text: root.label;
+                color: root.selected || area.has-hover ? Theme.mint : Theme.paper-muted;
+                font-size: 0.9375rem;
+                font-weight: root.selected ? 700 : 400;
+                vertical-alignment: center;
+                wrap: no-wrap;
+                overflow: elide;
+            }
         }
     }
 }
@@ -59,83 +129,150 @@ export component MainWindow inherits Window {
     preferred-height: 760px;
     min-width: 640px;
     min-height: 480px;
-    background: Theme.base;
+    background: Theme.edge;
     // Text scale 75% to 200%: every size in the UI is in rem, so this scales it all.
     default-font-size: 16px * AppState.text-scale-pct / 100;
+    // Counts views opened, for the diagnostics file.
+    property <int> view: AppState.current-view;
+    changed view => { AppState.view-opened(root.view); }
 
+    Backdrop {
+        width: 100%;
+        height: 100%;
+    }
 
-    HorizontalLayout {
-        // Sidebar
-        Rectangle {
-            width: 13rem;
-            background: Theme.base;
-            border-width: 0px;
-            Rectangle {
-                x: parent.width - 1px;
-                width: 1px;
-                background: Theme.text;
-            }
-            VerticalLayout {
-                padding: 0.75rem;
-                spacing: 0.4rem;
-                alignment: start;
-                HText { text: Tr.t("app-title"); font-size: 1.5rem; }
-                NavItem { label: Tr.t("nav-home"); selected: AppState.current-view == 0; clicked => { AppState.current-view = 0; } }
-                NavItem { label: Tr.t("nav-scouting"); selected: AppState.current-view == 1; clicked => { AppState.current-view = 1; } }
-                NavItem { label: Tr.t("nav-live"); selected: AppState.current-view == 2; clicked => { AppState.current-view = 2; } }
-                NavItem { label: Tr.t("nav-reviews"); selected: AppState.current-view == 3; clicked => { AppState.current-view = 3; } }
-                NavItem { label: Tr.t("nav-builds"); selected: AppState.current-view == 4; clicked => { AppState.current-view = 4; } }
-                NavItem { label: Tr.t("nav-settings"); selected: AppState.current-view == 5; clicked => { AppState.current-view = 5; } }
-                if AppState.demo: VerticalLayout {
-                    spacing: 0.4rem;
-                    padding-top: 1rem;
-                    // Secondary text, on the base background only.
-                    Text {
-                        text: Tr.t("demo-label");
-                        color: Theme.secondary;
-                        font-family: Theme.heading-font;
-                        font-size: 0.875rem;
-                    }
-                    Btn { label: Tr.t("demo-cycle-state"); clicked => { AppState.demo-cycle-state(); } }
-                    Text {
-                        text: AppState.demo-state-text;
-                        color: Theme.secondary;
-                        font-family: Theme.body-font;
-                        font-size: 0.8125rem;
-                        wrap: word-wrap;
-                    }
-                    Btn { label: Tr.t("demo-toggle-offline"); clicked => { AppState.demo-toggle-offline(); } }
+    // Esc goes back: it closes the setup steps, or returns to Home. Unhandled keys pass on.
+    root-keys := FocusScope {
+        init => { self.focus(); }
+        key-pressed(e) => {
+            if (e.text == Key.Escape) {
+                if (AppState.setup-open) {
+                    AppState.setup-open = false;
+                    return accept;
+                }
+                if (AppState.current-view != 0) {
+                    AppState.current-view = 0;
+                    return accept;
                 }
             }
+            reject
         }
 
         VerticalLayout {
-            horizontal-stretch: 1;
-            // Offline banner: cached data stays visible below it.
-            if AppState.offline: Rectangle {
-                background: Theme.base;
-                border-width: 1px;
-                border-color: Theme.text;
-                height: self.preferred-height;
+            HorizontalLayout {
+                // Left menu
+                // No divider line: the menu floats on the backdrop with a soft darker gradient
+                // toward the window edge (DEC-074).
+                Rectangle {
+                    width: 15rem;
+                    background: @linear-gradient(90deg, Theme.edge.with-alpha(0.8) 0%, Theme.edge.with-alpha(0.55) 60%, Theme.edge.with-alpha(0) 100%);
+                    // Scrolls when the sub-items and a large text size do not fit the window.
+                    ScrollView {
+                      VerticalLayout {
+                        padding: 1rem;
+                        padding-top: 1rem;
+                        spacing: 0.15rem;
+                        alignment: start;
+                        // The emblem: a chess-king silhouette in a stamped ring (original).
+                        Image {
+                            source: @image-url("../assets/ui/emblem.svg");
+                            colorize: Theme.text;
+                            width: 3.5rem;
+                            height: 3.5rem;
+                        }
+                        DText {
+                            text: Tr.upper(Tr.t("app-title"));
+                            font-size: 2.5rem;
+                            color: Theme.text;
+                        }
+                        Rectangle { height: 0.4rem; }
+                        NavItem { label: Tr.t("nav-home"); selected: AppState.current-view == 0; clicked => { AppState.current-view = 0; } }
+                        NavItem { label: Tr.t("nav-scouting"); selected: AppState.current-view == 1; clicked => { AppState.current-view = 1; } }
+                        NavItem { label: Tr.t("nav-live"); selected: AppState.current-view == 2; clicked => { AppState.current-view = 2; } }
+                        NavItem { label: Tr.t("nav-reviews"); selected: AppState.current-view == 3; clicked => { AppState.current-view = 3; } }
+                        NavItem { label: Tr.t("nav-builds"); selected: AppState.current-view == 4; clicked => { AppState.current-view = 4; } }
+                        if AppState.current-view == 4: VerticalLayout {
+                            padding-bottom: 0.3rem;
+                            NavSub { label: Tr.t("builds-tab-library"); selected: AppState.builds-tab == BuildsTab.library; clicked => { AppState.builds-tab = BuildsTab.library; } }
+                            NavSub { label: Tr.t("builds-tab-import"); selected: AppState.builds-tab == BuildsTab.community; clicked => { AppState.builds-tab = BuildsTab.community; } }
+                            NavSub { label: Tr.t("builds-tab-builder"); selected: AppState.builds-tab == BuildsTab.builder; clicked => { AppState.builds-tab = BuildsTab.builder; } }
+                        }
+                        NavItem { label: Tr.t("nav-settings"); selected: AppState.current-view == 5; clicked => { AppState.current-view = 5; } }
+                        if AppState.current-view == 5: VerticalLayout {
+                            padding-bottom: 0.3rem;
+                            NavSub { label: Tr.t("settings-account-title"); selected: AppState.settings-section == 0; clicked => { AppState.settings-section = 0; AppState.settings-jump += 1; } }
+                            NavSub { label: Tr.t("settings-llm-title"); selected: AppState.settings-section == 1; clicked => { AppState.settings-section = 1; AppState.settings-jump += 1; } }
+                            NavSub { label: Tr.t("settings-scale-title"); selected: AppState.settings-section == 2; clicked => { AppState.settings-section = 2; AppState.settings-jump += 1; } }
+                            NavSub { label: Tr.t("diag-title"); selected: AppState.settings-section == 3; clicked => { AppState.settings-section = 3; AppState.settings-jump += 1; } }
+                            NavSub { label: Tr.t("settings-privacy-title"); selected: AppState.settings-section == 4; clicked => { AppState.settings-section = 4; AppState.settings-jump += 1; } }
+                            NavSub { label: Tr.t("about-title"); selected: AppState.settings-section == 5; clicked => { AppState.settings-section = 5; AppState.settings-jump += 1; } }
+                        }
+                      }
+                    }
+                }
+
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    // Offline banner: cached data stays visible below it.
+                    if AppState.offline: Rectangle {
+                        background: Theme.base;
+                        border-width: 1px;
+                        border-color: Theme.paper-divider;
+                        height: self.preferred-height;
+                        HorizontalLayout {
+                            padding: 0.6rem;
+                            spacing: 0.5rem;
+                            Icon { kind: IconKind.offline; tint: Theme.secondary; y: 0; }
+                            Text {
+                                text: Tr.t("offline-banner");
+                                color: Theme.secondary;
+                                font-family: Theme.body-font;
+                                font-size: 0.875rem;
+                                wrap: word-wrap;
+                            }
+                        }
+                    }
+                    if AppState.current-view == 0: HomeView { }
+                    if AppState.current-view == 1: ScoutingView { }
+                    if AppState.current-view == 2: LiveView { }
+                    if AppState.current-view == 3: ReviewsView { }
+                    if AppState.current-view == 4: BuildsView { }
+                    if AppState.current-view == 5: SettingsView { }
+                }
+            }
+
+            // Footer hint bar
+            Rectangle {
+                height: 3.4rem;
+                background: Theme.edge;
+                Rectangle { y: 0; height: 1px; background: Theme.text; }
                 HorizontalLayout {
-                    padding: 0.6rem;
-                    spacing: 0.5rem;
-                    Icon { kind: IconKind.offline; tint: Theme.secondary; y: 0; }
-                    Text {
-                        text: Tr.t("offline-banner");
-                        color: Theme.secondary;
-                        font-family: Theme.body-font;
-                        font-size: 0.875rem;
-                        wrap: word-wrap;
+                    padding-left: 1.25rem;
+                    padding-right: 1.25rem;
+                    padding-top: 0.4rem;
+                    padding-bottom: 0.4rem;
+                    spacing: 1.75rem;
+                    KeyHint { key: Tr.t("key-esc"); label: Tr.t("hint-back"); }
+                    KeyHint { key: Tr.t("key-tab"); label: Tr.t("hint-move"); }
+                    KeyHint { key: Tr.t("key-enter"); label: Tr.t("hint-select"); }
+                    // Demo mode controls sit here, so they never crowd the menu.
+                    Rectangle { horizontal-stretch: 1; }
+                    if AppState.demo: HorizontalLayout {
+                        spacing: 0.75rem;
+                        // Secondary text, on the dark footer only.
+                        Text {
+                            text: (AppState.current-view >= 0 && AppState.current-view < AppState.demo-state-texts.length && AppState.demo-state-texts[AppState.current-view] != "") ? Tr.t("demo-label") + ": " + AppState.demo-state-texts[AppState.current-view] : Tr.t("demo-label");
+                            color: Theme.secondary;
+                            font-family: Theme.body-font;
+                            font-size: 0.8125rem;
+                            vertical-alignment: center;
+                            wrap: no-wrap;
+                        }
+                        Btn { label: Tr.t("demo-cycle-state"); clicked => { AppState.demo-cycle-state(); } }
+                        Btn { label: Tr.t("demo-toggle-offline"); clicked => { AppState.demo-toggle-offline(); } }
                     }
                 }
             }
-            if AppState.current-view == 0: HomeView { }
-            if AppState.current-view == 1: ScoutingView { }
-            if AppState.current-view == 2: LiveView { }
-            if AppState.current-view == 3: ReviewsView { }
-            if AppState.current-view == 4: BuildsView { }
-            if AppState.current-view == 5: SettingsView { }
         }
     }
 

@@ -16,3 +16,7 @@ deadlock_app_id = 1422450
 [llm]
 # FR-SET-001, DEC-030: "off", "local" or "own_key". Keys go in the OS keyring, never in this file.
 llm_provider = "off"
+
+[diagnostics]
+# FR-SET-005, DEC-070: "Save diagnostics while I play". Leave `enabled` out to follow
+# rules.toml [diagnostics] enabled_default; the settings screen writes true or false.

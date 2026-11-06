@@ -1,0 +1,78 @@
+# Standalone cargo-deb and cargo-generate-rpm metadata (T-004a, DEC-064).
+# scripts/package-linux.sh renders this file (replacing @VERSION@) into
+# target/package/linux/pkg/ together with the staged files, then runs the tools there.
+# This is not a real crate and is not part of the workspace: the tools only read its metadata.
+# Keep the dependency lists in step with packaging/aur/PKGBUILD.
+[package]
+name = "stalemate"
+version = "@VERSION@"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Companion app for Deadlock: scouting, live recommendations, match review"
+authors = ["HatchBear"]
+homepage = "https://github.com/HatchBear/Stalemate"
+repository = "https://github.com/HatchBear/Stalemate"
+publish = false
+
+[lib]
+path = "stub.rs"
+
+[workspace]
+
+[package.metadata.deb]
+maintainer = "HatchBear <noreply@users.noreply.github.com>"
+section = "games"
+priority = "optional"
+extended-description = """\
+Stalemate shows public stats for the players in your Deadlock match, gives live item \
+and pace recommendations, and reviews your matches afterwards. In a match it shows only \
+what a player could see in-game. It does not read game memory, inject code, hook graphics \
+or send input. Not affiliated with Valve Corporation."""
+# Shared libraries the Slint UI loads at run time (Wayland, X11, OpenGL, fonts) are listed
+# by hand because they are opened with dlopen and shlibdeps cannot see them.
+depends = "libc6 (>= 2.35), libfontconfig1, libfreetype6, libxkbcommon0, libxkbcommon-x11-0, libwayland-client0, libwayland-cursor0, libwayland-egl1, libx11-6, libx11-xcb1, libxcb1, libxcursor1, libxi6, libgl1, libegl1, libdbus-1-3, ca-certificates"
+recommends = "gnome-keyring | kwalletmanager"
+license-file = ["root/usr/share/doc/stalemate/LICENSE", "0"]
+assets = [
+    ["root/usr/bin/stalemate", "usr/bin/", "755"],
+    ["root/usr/lib/stalemate/stalemate", "usr/lib/stalemate/", "755"],
+    ["root/usr/share/stalemate/**/*", "usr/share/stalemate/", "644"],
+    ["root/usr/share/applications/*", "usr/share/applications/", "644"],
+    ["root/usr/share/metainfo/*", "usr/share/metainfo/", "644"],
+    ["root/usr/share/icons/**/*", "usr/share/icons/", "644"],
+    ["root/usr/share/doc/stalemate/LICENSE", "usr/share/doc/stalemate/copyright", "644"],
+]
+
+[package.metadata.generate-rpm]
+license = "GPL-3.0-or-later"
+summary = "Companion app for Deadlock: scouting, live recommendations, match review"
+url = "https://github.com/HatchBear/Stalemate"
+assets = [
+    { source = "root/usr/bin/stalemate", dest = "/usr/bin/stalemate", mode = "755" },
+    { source = "root/usr/lib/stalemate/stalemate", dest = "/usr/lib/stalemate/stalemate", mode = "755" },
+    { source = "root/usr/share/stalemate/**/*", dest = "/usr/share/stalemate/", mode = "644" },
+    { source = "root/usr/share/applications/*", dest = "/usr/share/applications/", mode = "644" },
+    { source = "root/usr/share/metainfo/*", dest = "/usr/share/metainfo/", mode = "644" },
+    { source = "root/usr/share/icons/**/*", dest = "/usr/share/icons/", mode = "644" },
+    { source = "root/usr/share/doc/stalemate/LICENSE", dest = "/usr/share/licenses/stalemate/LICENSE", mode = "644", doc = false, config = false },
+]
+
+[package.metadata.generate-rpm.requires]
+glibc = ">= 2.35"
+libgcc = "*"
+fontconfig = "*"
+freetype = "*"
+libxkbcommon = "*"
+libxkbcommon-x11 = "*"
+libwayland-client = "*"
+libwayland-cursor = "*"
+libwayland-egl = "*"
+libX11 = "*"
+libX11-xcb = "*"
+libxcb = "*"
+libXcursor = "*"
+libXi = "*"
+mesa-libGL = "*"
+mesa-libEGL = "*"
+dbus-libs = "*"
+ca-certificates = "*"

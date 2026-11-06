@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Stalemate per-user MSI (T-028a, NFR-PLAT-003 Alpha part). WiX 5 schema (WiX 5.0.2, MS-RL).
+  Built by scripts/package-windows.ps1, which stages the files and passes:
+    -d Version=<x.y.z>   -d StageDir=<folder holding stalemate.exe, config\, i18n\, LICENSE>
+  The overlay (stalemate-overlay.exe) is Beta and is not packaged. No Valve art is packaged.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+      Name="Stalemate"
+      Manufacturer="HatchBear"
+      Version="$(var.Version)"
+      UpgradeCode="0f6d3c1e-4a57-4b0e-9a63-5c8e2d7b91f4"
+      Scope="perUser"
+      InstallerVersion="500"
+      Compressed="yes">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Stalemate is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Feature Id="Main" Title="Stalemate" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <!-- %LOCALAPPDATA%\Programs\stalemate (doc 15). No elevation needed. -->
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsDir" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="stalemate" />
+      </Directory>
+    </StandardDirectory>
+  </Fragment>
+
+  <Fragment>
+    <!-- Everything in the stage folder: stalemate.exe, config\, i18n\, LICENSE. The app finds
+         config\ next to the executable (crates/core/src/settings.rs). The stage folder holds
+         package_format (the word "msi", FR-SET-005), written by package-windows.ps1. -->
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.StageDir)\**" />
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut" Guid="6b2f8a47-1d3c-4e95-8c0a-72e4f5a9d013">
+        <Shortcut
+            Id="StalemateStartMenuShortcut"
+            Name="Stalemate"
+            Description="Scouting, live recommendations and post-match review for Deadlock"
+            Target="[INSTALLFOLDER]stalemate.exe"
+            WorkingDirectory="INSTALLFOLDER" />
+        <!-- A per-user shortcut needs a registry key path (ICE38 and ICE43 are suppressed in the build). -->
+        <RegistryValue Root="HKCU" Key="Software\Stalemate" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+  </Fragment>
+</Wix>

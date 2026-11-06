@@ -5,9 +5,10 @@
 use crate::builder::{BuilderDraft, BuilderError};
 use crate::i18n::I18n;
 use crate::ui::{
-    AppState, BuildRowUi, CardKind, Check, CommunityRowUi, DataKind, EnemyRowUi, LastMatchUi,
-    LogAction, LogRowUi, MainHeroUi, MainWindow, ReportUi, ReviewRowUi, ScoutCardUi, SectionUi,
-    SoulKind, SoulRowUi, StateUi, TeamSide,
+    AppState, BuildRowUi, CardKind, Check, ChipRowUi, CommunityRowUi, DataKind, DiagResult,
+    EnemyRowUi, ItemCategory as UiCategory, ItemChipUi, LastMatchUi, LogAction, LogRowUi,
+    MainHeroUi, MainWindow, MatchOutcome, ReportUi, ReviewRowUi, ScoutCardUi, SectionUi, SoulKind,
+    SoulRowUi, StateUi, TeamSide,
 };
 use crate::view_model::*;
 use fluent_bundle::FluentValue;
@@ -22,11 +23,28 @@ pub const DYNAMIC_KEYS: &[&str] = &[
     "check-account-id",
     "check-broadcast",
     "check-deadlock-api",
+    "check-match-watcher",
     "check-steam-fail",
     "check-condebug-fail",
     "check-account-id-fail",
     "check-broadcast-fail",
     "check-deadlock-api-fail",
+    "check-match-watcher-fail",
+    "phase-idle",
+    "phase-match-detected",
+    "phase-live",
+    "phase-live-no-broadcast",
+    "phase-awaiting-end",
+    "phase-reviewing",
+    "phase-stopped",
+    "category-weapon",
+    "category-vitality",
+    "category-spirit",
+    "result-win",
+    "result-loss",
+    "result-none",
+    "result-abandoned",
+    "soul-other",
     "soul-lane-troopers",
     "soul-neutral-camps",
     "soul-breakables",
@@ -43,6 +61,7 @@ pub const DYNAMIC_KEYS: &[&str] = &[
     "builder-error-no-hero",
     "builder-error-no-name",
     "builder-error-empty",
+    "builder-error-save",
 ];
 
 pub fn check_label_key(id: CheckId) -> &'static str {
@@ -52,6 +71,7 @@ pub fn check_label_key(id: CheckId) -> &'static str {
         CheckId::AccountId => "check-account-id",
         CheckId::Broadcast => "check-broadcast",
         CheckId::DeadlockApi => "check-deadlock-api",
+        CheckId::MatchWatcher => "check-match-watcher",
     }
 }
 
@@ -62,6 +82,7 @@ pub fn check_fail_key(id: CheckId) -> &'static str {
         CheckId::AccountId => "check-account-id-fail",
         CheckId::Broadcast => "check-broadcast-fail",
         CheckId::DeadlockApi => "check-deadlock-api-fail",
+        CheckId::MatchWatcher => "check-match-watcher-fail",
     }
 }
 
@@ -72,6 +93,24 @@ pub fn soul_key(kind: SoulSourceKind) -> &'static str {
         SoulSourceKind::Breakables => "soul-breakables",
         SoulSourceKind::Urn => "soul-urn",
         SoulSourceKind::SinnersSacrifice => "soul-sinners-sacrifice",
+        SoulSourceKind::Other => "soul-other",
+    }
+}
+
+pub fn category_key(c: ItemCategory) -> &'static str {
+    match c {
+        ItemCategory::Weapon => "category-weapon",
+        ItemCategory::Vitality => "category-vitality",
+        ItemCategory::Spirit => "category-spirit",
+    }
+}
+
+fn result_key(o: Outcome) -> &'static str {
+    match o {
+        Outcome::Win => "result-win",
+        Outcome::Loss => "result-loss",
+        Outcome::NoResult => "result-none",
+        Outcome::Abandoned => "result-abandoned",
     }
 }
 
@@ -98,6 +137,7 @@ pub fn builder_error_key(error: BuilderError) -> &'static str {
         BuilderError::NoHero => "builder-error-no-hero",
         BuilderError::NoName => "builder-error-no-name",
         BuilderError::Empty => "builder-error-empty",
+        BuilderError::SaveFailed => "builder-error-save",
     }
 }
 
@@ -226,22 +266,30 @@ pub fn map_last_match(i18n: &I18n, m: &Option<MatchSummary>) -> LastMatchUi {
     let Some(m) = m else {
         return LastMatchUi {
             has_match: false,
-            won: false,
+            outcome: MatchOutcome::None,
             headline: SharedString::new(),
             detail: SharedString::new(),
         };
     };
     LastMatchUi {
         has_match: true,
-        won: m.won,
-        headline: result_title(i18n, m.won, &m.hero_name).into(),
+        outcome: outcome_ui(m.outcome),
+        headline: result_title(i18n, m.outcome, &m.hero_name).into(),
         detail: duration_and_ago(i18n, m.duration_secs, m.ended_ago_secs).into(),
     }
 }
 
-fn result_title(i18n: &I18n, won: bool, hero: &str) -> String {
-    let key = if won { "result-win" } else { "result-loss" };
-    i18n.t_args(key, &[("hero", text(hero))])
+fn outcome_ui(o: Outcome) -> MatchOutcome {
+    match o {
+        Outcome::Win => MatchOutcome::Win,
+        Outcome::Loss => MatchOutcome::Loss,
+        Outcome::NoResult => MatchOutcome::None,
+        Outcome::Abandoned => MatchOutcome::Abandoned,
+    }
+}
+
+fn result_title(i18n: &I18n, outcome: Outcome, hero: &str) -> String {
+    i18n.t_args(result_key(outcome), &[("hero", text(hero))])
 }
 
 fn duration_and_ago(i18n: &I18n, duration: u32, ended_ago: Option<u64>) -> String {
@@ -277,6 +325,7 @@ pub fn map_card(i18n: &I18n, c: &ScoutCardVm) -> ScoutCardUi {
         CardBody::HeroOnly => {}
         CardBody::NoPublicData => ui.kind = CardKind::NoPublicData,
         CardBody::Loading => ui.kind = CardKind::Loading,
+        CardBody::Unavailable => ui.kind = CardKind::Unavailable,
         CardBody::Stats(s) => {
             ui.kind = CardKind::Data;
             ui.overall = record_text(i18n, s.overall).into();
@@ -347,24 +396,120 @@ fn side_name(i18n: &I18n, s: Side) -> String {
 
 // ---- live -------------------------------------------------------------------------------
 
+fn ui_category(c: Option<ItemCategory>) -> UiCategory {
+    match c {
+        None => UiCategory::None,
+        Some(ItemCategory::Weapon) => UiCategory::Weapon,
+        Some(ItemCategory::Vitality) => UiCategory::Vitality,
+        Some(ItemCategory::Spirit) => UiCategory::Spirit,
+    }
+}
+
+/// An item as a chip: name, category colour and icon, and the category name for screen readers.
+pub fn map_chip(
+    i18n: &I18n,
+    name: &str,
+    category: Option<ItemCategory>,
+    icon: Option<&std::path::PathBuf>,
+) -> ItemChipUi {
+    let art = icon.and_then(|p| Image::load_from_path(p).ok());
+    ItemChipUi {
+        name: name.into(),
+        category: ui_category(category),
+        category_label: category
+            .map(|c| i18n.t(category_key(c)))
+            .unwrap_or_default()
+            .into(),
+        has_icon: art.is_some(),
+        icon: art.unwrap_or_default(),
+    }
+}
+
+pub fn map_item(i18n: &I18n, i: &ItemVm) -> ItemChipUi {
+    map_chip(i18n, &i.name, i.category, i.icon.as_ref())
+}
+
+pub fn map_option_chip(i18n: &I18n, o: &NamedOption) -> ItemChipUi {
+    map_chip(i18n, &o.name, o.category, None)
+}
+
+/// How many items of each category a build has, as chips ("Weapon 5"). Items with no category
+/// are left out. The order is fixed: Weapon, Vitality, Spirit.
+pub fn category_mix(i18n: &I18n, sections: &[SectionVm]) -> Vec<ItemChipUi> {
+    [
+        ItemCategory::Weapon,
+        ItemCategory::Vitality,
+        ItemCategory::Spirit,
+    ]
+    .into_iter()
+    .filter_map(|c| {
+        let n = sections
+            .iter()
+            .flat_map(|s| &s.items)
+            .filter(|i| i.category == Some(c))
+            .count();
+        (n > 0).then(|| {
+            let label = i18n.t_args(
+                "category-count",
+                &[
+                    ("category", text(&i18n.t(category_key(c)))),
+                    ("n", num(n as i64)),
+                ],
+            );
+            map_chip(i18n, &label, Some(c), None)
+        })
+    })
+    .collect()
+}
+
+/// Chips per row in a build's sections and in a Live player row. Slint has no wrapping layout, so
+/// the rows are cut here; the chips in a row share the width equally. A layout choice, not a rule.
+pub const BUILD_CHIPS_PER_ROW: usize = 6;
+pub const LIVE_CHIPS_PER_ROW: usize = 5;
+
+pub fn chip_rows(chips: Vec<ItemChipUi>, per_row: usize) -> Vec<ChipRowUi> {
+    chips
+        .chunks(per_row.max(1))
+        .map(|c| ChipRowUi {
+            chips: model(c.to_vec()),
+        })
+        .collect()
+}
+
+pub fn map_section(i18n: &I18n, s: &SectionVm) -> SectionUi {
+    let chips: Vec<ItemChipUi> = s.items.iter().map(|i| map_item(i18n, i)).collect();
+    SectionUi {
+        title: s.title.clone().into(),
+        rows: model(chip_rows(chips.clone(), BUILD_CHIPS_PER_ROW)),
+        items: model(chips),
+    }
+}
+
 pub fn map_enemy(i18n: &I18n, e: &EnemyRowVm) -> EnemyRowUi {
-    let names: Vec<&str> = e.items.iter().map(|i| i.name.as_str()).collect();
-    let items_text = if names.is_empty() {
-        i18n.t("items-none")
-    } else {
-        names.join(", ")
-    };
-    let icons: Vec<Image> = e
-        .items
-        .iter()
-        .filter_map(|i| i.icon.as_ref())
-        .filter_map(|p| Image::load_from_path(p).ok())
-        .collect();
+    let art = e
+        .portrait
+        .as_ref()
+        .and_then(|p| Image::load_from_path(p).ok());
     EnemyRowUi {
         hero: e.hero_name.clone().into(),
+        initial: e
+            .hero_name
+            .chars()
+            .next()
+            .map(|c| c.to_uppercase().collect::<String>())
+            .unwrap_or_default()
+            .into(),
+        has_portrait: art.is_some(),
+        portrait: art.unwrap_or_default(),
         name: e.player_name.clone().into(),
-        items_text: items_text.into(),
-        item_icons: model(icons),
+        side: side(e.team),
+        side_label: side_name(i18n, e.team).into(),
+        item_rows: model(chip_rows(
+            e.items.iter().map(|i| map_item(i18n, i)).collect(),
+            LIVE_CHIPS_PER_ROW,
+        )),
+        has_items: !e.items.is_empty(),
+        items_none: i18n.t("items-none").into(),
         kda: e
             .kda
             .map(|k| format!("{}/{}/{}", k.kills, k.deaths, k.assists))
@@ -375,6 +520,11 @@ pub fn map_enemy(i18n: &I18n, e: &EnemyRowVm) -> EnemyRowUi {
             .map(|l| l.to_string())
             .unwrap_or_else(|| i18n.t("value-missing"))
             .into(),
+        souls: e
+            .souls
+            .map(|s| thousands(s.into()))
+            .unwrap_or_else(|| i18n.t("value-missing"))
+            .into(),
     }
 }
 
@@ -382,7 +532,7 @@ pub fn map_log(i18n: &I18n, p: &PurchaseEntryVm) -> LogRowUi {
     LogRowUi {
         time: clock(p.t_game_secs).into(),
         player: p.player_name.clone().into(),
-        item: p.item_name.clone().into(),
+        item: map_chip(i18n, &p.item_name, p.category, None),
         action: match p.action {
             PurchaseAction::Buy => LogAction::Buy,
             PurchaseAction::Sell => LogAction::Sell,
@@ -396,9 +546,15 @@ pub fn map_log(i18n: &I18n, p: &PurchaseEntryVm) -> LogRowUi {
 
 pub fn map_review_row(i18n: &I18n, r: &ReviewListItemVm) -> ReviewRowUi {
     ReviewRowUi {
-        title: result_title(i18n, r.won, &r.hero_name).into(),
-        won: r.won,
-        meta: duration_and_ago(i18n, r.duration_secs, r.ended_ago_secs).into(),
+        title: result_title(i18n, r.outcome, &r.hero_name).into(),
+        outcome: outcome_ui(r.outcome),
+        pending: r.pending,
+        meta: if r.pending {
+            i18n.t("review-pending-meta")
+        } else {
+            duration_and_ago(i18n, r.duration_secs, r.ended_ago_secs)
+        }
+        .into(),
     }
 }
 
@@ -407,7 +563,7 @@ pub fn map_report(i18n: &I18n, r: &Option<ReviewReportVm>) -> ReportUi {
     let Some(r) = r else {
         return ReportUi {
             has_report: false,
-            won: false,
+            outcome: MatchOutcome::None,
             headline: SharedString::new(),
             duration: SharedString::new(),
             lane_title: SharedString::new(),
@@ -419,10 +575,11 @@ pub fn map_report(i18n: &I18n, r: &Option<ReviewReportVm>) -> ReportUi {
     };
     let minutes = (r.duration_secs / 60) as i64;
     let result_line = i18n.t_n(
-        if r.won {
-            "report-summary-win"
-        } else {
-            "report-summary-loss"
+        match r.outcome {
+            Outcome::Win => "report-summary-win",
+            Outcome::Loss => "report-summary-loss",
+            Outcome::NoResult => "report-summary-none",
+            Outcome::Abandoned => "report-summary-abandoned",
         },
         "minutes",
         minutes,
@@ -478,6 +635,7 @@ pub fn map_report(i18n: &I18n, r: &Option<ReviewReportVm>) -> ReportUi {
                     SoulSourceKind::Breakables => SoulKind::Breakables,
                     SoulSourceKind::Urn => SoulKind::Urn,
                     SoulSourceKind::SinnersSacrifice => SoulKind::SinnersSacrifice,
+                    SoulSourceKind::Other => SoulKind::Other,
                 },
                 label: i18n.t(soul_key(s.kind)).into(),
                 souls: i18n
@@ -494,8 +652,8 @@ pub fn map_report(i18n: &I18n, r: &Option<ReviewReportVm>) -> ReportUi {
         .collect();
     ReportUi {
         has_report: true,
-        won: r.won,
-        headline: result_title(i18n, r.won, &r.hero_name).into(),
+        outcome: outcome_ui(r.outcome),
+        headline: result_title(i18n, r.outcome, &r.hero_name).into(),
         duration: i18n
             .t_args(
                 "report-duration",
@@ -535,6 +693,8 @@ pub fn map_build(i18n: &I18n, b: &BuildVm) -> BuildRowUi {
             String::new()
         }
         .into(),
+        mix: model(category_mix(i18n, &b.sections)),
+        sections: model(b.sections.iter().map(|s| map_section(i18n, s)).collect()),
     }
 }
 
@@ -543,21 +703,19 @@ pub fn map_community(i18n: &I18n, c: &CommunityBuildVm) -> CommunityRowUi {
         name: c.name.clone().into(),
         hero: c.hero_name.clone().into(),
         usage: i18n.t_n("community-usage", "n", c.usage.into()).into(),
+        mix: model(category_mix(i18n, &c.sections)),
+        sections: model(c.sections.iter().map(|s| map_section(i18n, s)).collect()),
     }
 }
 
-pub fn map_sections(draft: &BuilderDraft) -> Vec<SectionUi> {
+pub fn map_sections(i18n: &I18n, draft: &BuilderDraft) -> Vec<SectionUi> {
     draft
         .sections
         .iter()
         .map(|s| SectionUi {
             title: s.title.clone().into(),
-            items: model(
-                s.items
-                    .iter()
-                    .map(|i| SharedString::from(i.name.as_str()))
-                    .collect(),
-            ),
+            items: model(s.items.iter().map(|i| map_option_chip(i18n, i)).collect()),
+            rows: ModelRc::default(),
         })
         .collect()
 }
@@ -566,12 +724,34 @@ pub fn map_sections(draft: &BuilderDraft) -> Vec<SectionUi> {
 
 /// Installs the Fluent lookup as `Tr.t`.
 pub fn install_strings(ui: &MainWindow, i18n: std::sync::Arc<I18n>) {
-    ui.global::<crate::ui::Tr>()
-        .on_t(move |key| i18n.t(key.as_str()).into());
+    let tr = ui.global::<crate::ui::Tr>();
+    tr.on_t(move |key| i18n.t(key.as_str()).into());
+    // Display headings are uppercase. Slint has no text-transform, so Rust does it.
+    tr.on_upper(|text| text.to_uppercase().into());
+    tr.on_initial(|text| {
+        text.chars()
+            .next()
+            .map(|c| c.to_uppercase().collect::<String>())
+            .unwrap_or_default()
+            .into()
+    });
+}
+
+pub fn phase_key(phase: Phase) -> &'static str {
+    match phase {
+        Phase::Idle => "phase-idle",
+        Phase::MatchDetected => "phase-match-detected",
+        Phase::Live => "phase-live",
+        Phase::LiveNoBroadcast => "phase-live-no-broadcast",
+        Phase::AwaitingBroadcastEnd => "phase-awaiting-end",
+        Phase::Reviewing => "phase-reviewing",
+        Phase::Stopped => "phase-stopped",
+    }
 }
 
 pub fn apply_home(ui: &MainWindow, vm: &HomeVm, i18n: &I18n) {
     let s = ui.global::<AppState>();
+    s.set_phase_text(i18n.t(phase_key(vm.phase)).into());
     s.set_checks(model(
         vm.checks.iter().map(|c| map_check(i18n, c)).collect(),
     ));
@@ -627,6 +807,19 @@ pub fn apply_live(ui: &MainWindow, vm: &LiveVm, i18n: &I18n) {
     s.set_delay_stale(vm.delay_stale);
     s.set_show_kda(vm.show_kda());
     s.set_show_level(vm.show_level());
+    s.set_show_souls(vm.show_souls());
+    s.set_enemy_board_heading(
+        vm.enemies
+            .first()
+            .map(|e| {
+                i18n.t_args(
+                    "live-board-heading",
+                    &[("team", text(&side_name(i18n, e.team)))],
+                )
+            })
+            .unwrap_or_default()
+            .into(),
+    );
     s.set_enemy_rows(model(
         vm.enemies.iter().map(|e| map_enemy(i18n, e)).collect(),
     ));
@@ -641,8 +834,14 @@ pub fn apply_reviews(ui: &MainWindow, vm: &ReviewsVm, i18n: &I18n) {
     s.set_review_rows(model(
         vm.list.iter().map(|r| map_review_row(i18n, r)).collect(),
     ));
+    s.set_review_count_text(i18n.t_n("reviews-count", "n", vm.list.len() as i64).into());
     s.set_selected_review(vm.selected.map_or(-1, |i| i as i32));
     s.set_report(map_report(i18n, &vm.report));
+    s.set_selected_pending(
+        vm.selected
+            .and_then(|i| vm.list.get(i))
+            .is_some_and(|r| r.pending),
+    );
 }
 
 pub fn apply_builds(ui: &MainWindow, vm: &BuildsVm, i18n: &I18n) {
@@ -651,6 +850,10 @@ pub fn apply_builds(ui: &MainWindow, vm: &BuildsVm, i18n: &I18n) {
     s.set_library(model(
         vm.library.iter().map(|b| map_build(i18n, b)).collect(),
     ));
+    s.set_library_count_text(
+        i18n.t_n("builds-count", "n", vm.library.len() as i64)
+            .into(),
+    );
     s.set_heroes(model(
         vm.heroes
             .iter()
@@ -673,7 +876,7 @@ pub fn apply_builder(
     i18n: &I18n,
 ) {
     let s = ui.global::<AppState>();
-    s.set_builder_sections(model(map_sections(draft)));
+    s.set_builder_sections(model(map_sections(i18n, draft)));
     s.set_builder_error(
         error
             .map(|e| i18n.t(builder_error_key(e)))
@@ -690,10 +893,44 @@ pub fn apply_settings(ui: &MainWindow, vm: &SettingsVm, i18n: &I18n) {
             .unwrap_or_default()
             .into(),
     );
+    s.set_account_id_error(if vm.account_invalid {
+        i18n.t("settings-account-invalid").into()
+    } else {
+        SharedString::new()
+    });
     s.set_version_text(
         i18n.t_args("about-version", &[("version", text(&vm.version))])
             .into(),
     );
+    s.set_diag_enabled(vm.diag_enabled);
+    s.set_diag_save_open(vm.diag_open);
+    s.set_diag_preview(model(
+        vm.diag_preview
+            .iter()
+            .map(|l| SharedString::from(l.as_str()))
+            .collect(),
+    ));
+    let (kind, result_text, folder) = match &vm.diag_result {
+        crate::diag::SaveResult::None => (DiagResult::None, String::new(), String::new()),
+        crate::diag::SaveResult::Saved(path) => (
+            DiagResult::Saved,
+            i18n.t_args("diag-saved", &[("path", text(&path.display().to_string()))]),
+            path.parent()
+                .map(|p| p.display().to_string())
+                .unwrap_or_default(),
+        ),
+        crate::diag::SaveResult::Leak(kind) => (
+            DiagResult::Leak,
+            i18n.t_args("diag-leak", &[("kind", text(kind))]),
+            String::new(),
+        ),
+        crate::diag::SaveResult::Failed => {
+            (DiagResult::Failed, i18n.t("diag-failed"), String::new())
+        }
+    };
+    s.set_diag_result(kind);
+    s.set_diag_result_text(result_text.into());
+    s.set_diag_folder(folder.into());
 }
 
 pub fn apply_all(ui: &MainWindow, vm: &AppVm, i18n: &I18n) {
@@ -828,33 +1065,113 @@ mod tests {
     }
 
     #[test]
-    fn enemy_row_shows_dash_for_missing_kda_and_joins_items() {
+    fn enemy_row_shows_dash_for_missing_values_and_keeps_item_categories() {
+        use slint::Model;
         let row = EnemyRowVm {
             hero_name: "Hero 1".into(),
+            portrait: None,
             player_name: "Player 1".into(),
+            team: Side::Sapphire,
+            souls: Some(12_345),
             items: vec![
                 ItemVm {
                     name: "Item A".into(),
                     icon: None,
+                    category: Some(ItemCategory::Weapon),
                 },
                 ItemVm {
                     name: "Item B".into(),
                     icon: None,
+                    category: None,
                 },
             ],
             kda: None,
             level: Some(7),
         };
         let ui = map_enemy(&i18n(), &row);
-        assert_eq!(ui.items_text, "Item A, Item B");
+        assert!(ui.has_items);
+        // Three chips to a row in the Live list: two items make one row.
+        assert_eq!(ui.item_rows.row_count(), 1);
+        let first = ui.item_rows.row_data(0).unwrap();
+        assert_eq!(first.chips.row_count(), 2);
+        let a = first.chips.row_data(0).unwrap();
+        assert_eq!(a.category, UiCategory::Weapon);
+        assert_eq!(a.category_label, "Weapon", "the category name is text too");
+        assert_eq!(first.chips.row_data(1).unwrap().category, UiCategory::None);
         assert_eq!(ui.kda, "-");
         assert_eq!(ui.level, "7");
+        assert_eq!(ui.souls, "12,345");
+        assert_eq!(ui.side, TeamSide::Sapphire);
+        assert_eq!(ui.side_label, "Sapphire");
+        assert_eq!(ui.initial, "H");
+        assert!(!ui.has_portrait);
+    }
+
+    #[test]
+    fn build_mix_counts_each_category_and_names_it() {
+        use slint::Model;
+        let item = |c| ItemVm {
+            name: "Item".into(),
+            icon: None,
+            category: c,
+        };
+        let sections = vec![
+            SectionVm {
+                title: "Early".into(),
+                items: vec![
+                    item(Some(ItemCategory::Weapon)),
+                    item(Some(ItemCategory::Weapon)),
+                    item(Some(ItemCategory::Spirit)),
+                ],
+            },
+            SectionVm {
+                title: "Late".into(),
+                items: vec![item(Some(ItemCategory::Vitality)), item(None)],
+            },
+        ];
+        let mix = category_mix(&i18n(), &sections);
+        let names: Vec<String> = mix.iter().map(|c| c.name.to_string()).collect();
+        assert_eq!(names, ["Weapon 2", "Vitality 1", "Spirit 1"]);
+        let ui = map_build(
+            &i18n(),
+            &BuildVm {
+                build_id: "b".into(),
+                name: "B".into(),
+                hero_name: "H".into(),
+                source: BuildSource::Manual,
+                item_count: 5,
+                sections,
+                active: false,
+                items_removed: 0,
+            },
+        );
+        assert_eq!(ui.mix.row_count(), 3);
+        assert_eq!(ui.sections.row_count(), 2);
+    }
+
+    #[test]
+    fn abandoned_has_its_own_words_in_the_list_and_the_report() {
+        let i = i18n();
+        assert_eq!(outcome_ui(Outcome::Abandoned), MatchOutcome::Abandoned);
+        assert_eq!(
+            result_title(&i, Outcome::Abandoned, "Hero 1"),
+            "Abandoned as Hero 1"
+        );
+        assert_eq!(
+            result_title(&i, Outcome::NoResult, "Hero 1"),
+            "No result as Hero 1"
+        );
+        let mut r = report(None);
+        r.outcome = Outcome::Abandoned;
+        let ui = map_report(&i, &Some(r));
+        assert_eq!(ui.outcome, MatchOutcome::Abandoned);
+        assert!(ui.summary_line.contains("abandoned"), "{}", ui.summary_line);
     }
 
     fn report(lead: Option<i32>) -> ReviewReportVm {
         ReviewReportVm {
             match_id: 1,
-            won: true,
+            outcome: Outcome::Win,
             hero_name: "Hero 1".into(),
             duration_secs: 34 * 60 + 12,
             lane_soul_lead: lead,
@@ -921,6 +1238,7 @@ mod tests {
             hero_name: "Hero 1".into(),
             source: BuildSource::Manual,
             item_count: 12,
+            sections: vec![],
             active: false,
             items_removed: 0,
         };
@@ -939,9 +1257,25 @@ mod tests {
             CheckId::AccountId,
             CheckId::Broadcast,
             CheckId::DeadlockApi,
+            CheckId::MatchWatcher,
         ] {
             keys.push(check_label_key(id));
             keys.push(check_fail_key(id));
+        }
+        for c in [
+            ItemCategory::Weapon,
+            ItemCategory::Vitality,
+            ItemCategory::Spirit,
+        ] {
+            keys.push(category_key(c));
+        }
+        for o in [
+            Outcome::Win,
+            Outcome::Loss,
+            Outcome::NoResult,
+            Outcome::Abandoned,
+        ] {
+            keys.push(result_key(o));
         }
         for k in [
             SoulSourceKind::LaneTroopers,
@@ -949,8 +1283,20 @@ mod tests {
             SoulSourceKind::Breakables,
             SoulSourceKind::Urn,
             SoulSourceKind::SinnersSacrifice,
+            SoulSourceKind::Other,
         ] {
             keys.push(soul_key(k));
+        }
+        for p in [
+            Phase::Idle,
+            Phase::MatchDetected,
+            Phase::Live,
+            Phase::LiveNoBroadcast,
+            Phase::AwaitingBroadcastEnd,
+            Phase::Reviewing,
+            Phase::Stopped,
+        ] {
+            keys.push(phase_key(p));
         }
         for a in [
             PurchaseAction::Buy,
@@ -972,6 +1318,7 @@ mod tests {
             BuilderError::NoHero,
             BuilderError::NoName,
             BuilderError::Empty,
+            BuilderError::SaveFailed,
         ] {
             keys.push(builder_error_key(e));
         }

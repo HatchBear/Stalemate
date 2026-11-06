@@ -28,14 +28,14 @@ Specifies every data source the app uses: how it's read, how often, its limits, 
 ### Match Watcher (M-01)
 
 - **Input:** `console.log` written by Deadlock when launched with `-condebug`. The first-run setup tells the user to add it (FR-SET-003).
-- **Path:** `<Steam library>/steamapps/common/Deadlock/game/citadel/console.log` [VERIFY] (OQ-03).
+- **Path:** `<Steam library>/steamapps/common/Deadlock/game/citadel/console.log`. Verified on native Steam on Linux (T-006, DEC-062); Flatpak Steam and Windows still to confirm in Alpha testing.
 - **Steam libraries to search:**
     - Native Steam: `~/.local/share/Steam`, `~/.steam/steam`.
     - Flatpak Steam: `~/.var/app/com.valvesoftware.Steam/.local/share/Steam`.
     - Every library listed in `steamapps/libraryfolders.vdf` under those roots.
     - Windows: `C:\Program Files (x86)\Steam` plus `libraryfolders.vdf`.
 - **Method:** Tail the file with the `notify` crate, plus a 1 s poll fallback. Handle truncation when the game restarts.
-- **Patterns:** The log lines for match start, match end and match ID aren't known yet. Capture them from real logs in task T-006 and store them as regexes in `DATA-001` config, never hard-coded (OQ-03).
+- **Patterns:** Captured from real logs in T-006 (DEC-062) and stored as regexes in `DATA-001` config, never hard-coded. Start is the Steam datagram ticket line that carries `match_id=`; the match ID comes from the `Lobby <id> for Match <id> created` line that follows it; end is `OnGameStateChanged: PostGame (8)`; exit is `HostStateRequest::Start(HSR_QUIT)`. Hideout and loopback sessions never match. Not yet seen: a mid-match leave or abandon (no `PostGame`, so no `Ended`), a reconnect (a second `Started` for the same match ID), bot, private and ranked matches. The core treats the next `Started` or `GameExited` as the end of an unfinished match and ignores a repeated `Started` for the same match ID.
 - **Output events:** `Started`, `MatchId(u64)`, `Ended`, `GameExited` ([12](12-programs-and-code.md) PRG-01). The core pairs `Started` with the next `MatchId` to form a match.
 
 ### Account (M-02)
@@ -84,6 +84,8 @@ Base URL: `https://api.deadlock-api.com`. The machine-readable spec is at `/open
 | API-16 | `GET /v1/builds?hero_id=…&only_latest=true` | In-game builds (FR-BUILD-001). Don't use `/v1/builds/{hero_id}/{build_id}`: it can trigger a game-coordinator fetch on deadlock-api's side | Verified (T-009, DEC-053). 100 req/s per IP |
 | API-18 | Team comp win-rate prediction (the source behind deadlock-api's team builder) | Team comp prediction (FR-LIVE-016) | Path [VERIFY]; the team builder page documents no endpoint. Fallback: global hero counter and synergy stats (API-09 and API-10 without `account_ids`) |
 | API-17 | Replay file URL for a match | Downloading a replay when the recording is missing (FR-DATA-009) | Path [VERIFY]. If it needs Valve-side data, treat it like the locator (OQ-02) and drop it if non-compliant |
+| LOC-1 | `GET /v1/matches/live/urls` | Broadcast locator: the list of live matches with relay URLs (DEC-049) | Verified (T-008, T-010). Used first |
+| LOC-2 | `GET /v1/matches/{match_id}/live/url` | Broadcast locator for one match, when LOC-1 doesn't list it (DEC-049) | Verified (T-010). 6 req/h per IP, 300 req/h globally; bucket `live_url_per_hour` (DEC-058) |
 
 #### Rate limits
 
@@ -161,7 +163,7 @@ sequenceDiagram
 ## Open Questions
 
 - OQ-02: How is the Broadcast URL obtained? (Blocking for FR-DATA-003.)
-- OQ-03: What is the exact `console.log` path, and which log lines mark match start, match end and match ID?
+- OQ-03: What is the exact `console.log` path, and which log lines mark match start, match end and match ID? **Resolved (DEC-062).**
 - OQ-05: Which fields does API-05 return (purchases, selected build, pre-swap hero, party, per-minute stats), and what's its batch limit?
 - OQ-07: What's the path of API-16 (community builds)?
 - OQ-18: What's the path of API-17 (replay URL), and does it need Valve-side data?

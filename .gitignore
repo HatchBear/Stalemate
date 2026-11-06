@@ -20,3 +20,6 @@ reviews/
 /packaging/flatpak/cargo-sources.json
 /build-dir/
 /.flatpak-builder/
+
+# Raw relay recordings from the fixture recorder (hold chat and positions; never commit)
+/fixtures-raw/

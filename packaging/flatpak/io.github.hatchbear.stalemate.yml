@@ -19,6 +19,7 @@ finish-args:
   - --filesystem=~/.local/share/Steam:ro # native Steam
   - --filesystem=~/.steam:ro
   - --filesystem=~/.var/app/com.valvesoftware.Steam:ro # Flatpak Steam
+  - --filesystem=xdg-download # saved diagnostics file (DEC-075)
   # Steam libraries elsewhere: the user grants access through the FileChooser portal.
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin

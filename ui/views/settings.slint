@@ -1,23 +1,33 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { Icon, IconKind } from "../icons.slint";
-import { AppState, Tr } from "../types.slint";
-import { HText, BText, Panel, Btn, TextBox, ViewFrame, IconText } from "../widgets.slint";
+import { AppState, Tr, DiagResult } from "../types.slint";
+import { HText, BText, DText, PageTitle, PaperPanel, SectionHead, Divider, FormRow, Chip, CheckRow, Btn, TextBox, ViewFrame, IconText } from "../widgets.slint";
 
+// Like the game's settings screen: a grey paper panel with labelled rows and thin dividers.
 export component SettingsView inherits ViewFrame {
-    ScrollView {
-        VerticalLayout {
-            padding: 1rem;
-            spacing: 1rem;
+    // The nav's sub-items scroll to a section (0 account, 1 AI coach, 2 text size, 3 diagnostics,
+    // 4 privacy, 5 about).
+    property <int> jump: AppState.settings-jump;
+    property <length> section-y: AppState.settings-section == 0 ? s-account.absolute-position.y : AppState.settings-section == 1 ? s-llm.absolute-position.y : AppState.settings-section == 2 ? s-scale.absolute-position.y : AppState.settings-section == 3 ? s-diag.absolute-position.y : AppState.settings-section == 4 ? s-privacy.absolute-position.y : s-about.absolute-position.y;
+    changed jump => {
+        sv.content-y = -max(0px, min(root.section-y - page.absolute-position.y - 0.5rem, sv.content-height - sv.height));
+    }
+    sv := ScrollView {
+        page := VerticalLayout {
+            padding: 1.5rem;
+            padding-top: 1rem;
+            spacing: 1.5rem;
             alignment: start;
-            HText { text: Tr.t("settings-title"); font-size: 1.5rem; }
+            PageTitle { text: Tr.t("settings-title"); }
 
-            Panel {
+            PaperPanel {
                 VerticalLayout {
-                    padding: 1rem;
-                    spacing: 0.5rem;
-                    HText { text: Tr.t("settings-account-title"); font-size: 1.125rem; }
-                    BText { text: Tr.t("settings-account-help"); }
+                    padding: 1.5rem;
+                    spacing: 0.9rem;
+
+                    s-account := SectionHead { text: Tr.t("settings-account-title"); }
+                    BText { text: Tr.t("settings-account-help"); color: Theme.paper-muted; }
                     HorizontalLayout {
                         spacing: 0.75rem;
                         TextBox {
@@ -27,48 +37,31 @@ export component SettingsView inherits ViewFrame {
                             horizontal-stretch: 1;
                             accepted(t) => { AppState.save-account-id(t); }
                         }
-                        Btn { label: Tr.t("settings-account-save"); clicked => { AppState.save-account-id(AppState.account-id); } }
+                        Btn { primary: true; label: Tr.t("settings-account-save"); clicked => { AppState.save-account-id(AppState.account-id); } }
                     }
+                    // On paper the error icon is cream: the warning red is below 3:1 on paper.
                     if AppState.account-id-error != "": IconText {
                         kind: IconKind.error;
-                        tint: Theme.warn;
                         text: AppState.account-id-error;
                     }
-                }
-            }
+                    Divider { }
 
-            Panel {
-                VerticalLayout {
-                    padding: 1rem;
-                    spacing: 0.5rem;
-                    HText { text: Tr.t("settings-llm-title"); font-size: 1.125rem; }
-                    HorizontalLayout {
-                        spacing: 0.75rem;
-                        HText { text: Tr.t("settings-llm-label"); vertical-alignment: center; }
-                        Rectangle {
-                            background: Theme.base;
-                            border-width: 1px;
-                            border-color: Theme.text;
-                            min-height: 2rem;
-                            min-width: 8rem;
-                            horizontal-stretch: 0;
+                    s-llm := SectionHead { text: Tr.t("settings-llm-title"); }
+                    FormRow {
+                        label: Tr.t("settings-llm-label");
+                        hint: Tr.t("settings-llm-note");
+                        Chip {
+                            text: Tr.t("settings-llm-off");
+                            y: 0;
                             accessible-role: text;
                             accessible-label: Tr.t("settings-llm-off");
-                            BText { text: Tr.t("settings-llm-off"); x: 0.6rem; vertical-alignment: center; wrap: no-wrap; }
                         }
                     }
-                    BText { text: Tr.t("settings-llm-note"); }
-                }
-            }
 
-            Panel {
-                VerticalLayout {
-                    padding: 1rem;
-                    spacing: 0.5rem;
-                    HText { text: Tr.t("settings-scale-title"); font-size: 1.125rem; }
-                    BText { text: Tr.t("settings-scale-help"); }
+                    s-scale := SectionHead { text: Tr.t("settings-scale-title"); }
+                    BText { text: Tr.t("settings-scale-help"); color: Theme.paper-muted; }
                     HorizontalLayout {
-                        spacing: 0.4rem;
+                        spacing: 0.5rem;
                         alignment: start;
                         for pct in [75, 100, 125, 150, 175, 200]: Btn {
                             label: pct + "%";
@@ -76,30 +69,75 @@ export component SettingsView inherits ViewFrame {
                             clicked => { AppState.set-text-scale(pct); }
                         }
                     }
-                }
-            }
+                    Divider { }
 
-            Panel {
-                VerticalLayout {
-                    padding: 1rem;
-                    spacing: 0.5rem;
-                    HText { text: Tr.t("settings-privacy-title"); font-size: 1.125rem; }
+                    s-diag := SectionHead { text: Tr.t("diag-title"); }
+                    BText { text: Tr.t("diag-help"); color: Theme.paper-muted; }
+                    CheckRow {
+                        label: Tr.t("diag-enable");
+                        checked <=> AppState.diag-enabled;
+                        toggled(on) => { AppState.set-diag-enabled(on); }
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        Btn { label: Tr.t("diag-save-button"); selected: AppState.diag-save-open; clicked => { AppState.open-diag-save(); } }
+                    }
+                    if AppState.diag-save-open: VerticalLayout {
+                        spacing: 0.6rem;
+                        HText { text: Tr.t("diag-preview-title"); font-weight: 600; }
+                        for line in AppState.diag-preview: HorizontalLayout {
+                            spacing: 0.6rem;
+                            Rectangle { width: 0.4rem; height: 0.4rem; y: 0.5rem; background: Theme.mint; }
+                            BText { text: line; horizontal-stretch: 1; preferred-width: 1px; }
+                        }
+                        BText { text: Tr.t("diag-never"); color: Theme.paper-muted; }
+                        TextBox {
+                            text <=> AppState.diag-note;
+                            placeholder: Tr.t("diag-note-placeholder");
+                            label: Tr.t("diag-note-placeholder");
+                        }
+                        CheckRow {
+                            label: Tr.t("diag-include-id");
+                            checked <=> AppState.diag-include-id;
+                        }
+                        HorizontalLayout {
+                            spacing: 0.75rem;
+                            alignment: start;
+                            Btn { primary: true; label: Tr.t("diag-save"); clicked => { AppState.save-diag(AppState.diag-note, AppState.diag-include-id); } }
+                            Btn { label: Tr.t("diag-cancel"); clicked => { AppState.diag-save-open = false; AppState.close-diag-save(); } }
+                        }
+                    }
+                    if AppState.diag-result == DiagResult.saved: VerticalLayout {
+                        spacing: 0.5rem;
+                        IconText { kind: IconKind.pass; text: AppState.diag-result-text; }
+                        HorizontalLayout {
+                            alignment: start;
+                            Btn { label: Tr.t("diag-open-folder"); clicked => { AppState.open-diag-folder(); } }
+                        }
+                    }
+                    if AppState.diag-result == DiagResult.leak || AppState.diag-result == DiagResult.failed: IconText {
+                        kind: IconKind.error;
+                        text: AppState.diag-result-text;
+                    }
+                    Divider { }
+
+                    s-privacy := SectionHead { text: Tr.t("settings-privacy-title"); }
                     BText { text: Tr.t("settings-privacy-1"); }
+                    Divider { }
                     BText { text: Tr.t("settings-privacy-2"); }
+                    Divider { }
                     BText { text: Tr.t("settings-privacy-3"); }
-                }
-            }
+                    Divider { }
 
-            Panel {
-                VerticalLayout {
-                    padding: 1rem;
-                    spacing: 0.5rem;
-                    HText { text: Tr.t("about-title"); font-size: 1.125rem; }
-                    BText { text: AppState.version-text; }
+                    s-about := SectionHead { text: Tr.t("about-title"); }
+                    FormRow {
+                        label: Tr.t("about-title");
+                        Chip { text: AppState.version-text; y: 0; }
+                    }
                     BText { text: Tr.t("about-licence"); }
                     // FP-9
-                    HText { text: Tr.t("about-not-affiliated"); }
-                    BText { text: Tr.t("about-fonts"); }
+                    HText { text: Tr.t("about-not-affiliated"); font-weight: 600; }
+                    BText { text: Tr.t("about-fonts"); color: Theme.paper-muted; }
                 }
             }
         }

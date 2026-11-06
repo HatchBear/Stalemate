@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <!-- Stalemate emblem (original): a chess-king silhouette inside a stamped double ring.
+       Simple shapes only, one colour. No spokes or teeth, so it is not a wheel. -->
+  <circle cx="50" cy="50" r="47" fill="none" stroke="#efdebf" stroke-width="4.5"/>
+  <circle cx="50" cy="50" r="40" fill="none" stroke="#efdebf" stroke-width="1.5"/>
+  <!-- cross -->
+  <rect x="47.5" y="15" width="5" height="15" rx="1" fill="#efdebf"/>
+  <rect x="41.5" y="20" width="17" height="5" rx="1" fill="#efdebf"/>
+  <!-- crown -->
+  <path d="M35 49 C35 38 42 31 50 31 C58 31 65 38 65 49 Z" fill="#efdebf"/>
+  <!-- collar -->
+  <rect x="33" y="51.5" width="34" height="4" rx="1.5" fill="#efdebf"/>
+  <!-- body -->
+  <path d="M41.5 58 L58.5 58 C58.5 65 62.5 69 67 73 L33 73 C37.5 69 41.5 65 41.5 58 Z" fill="#efdebf"/>
+  <!-- base -->
+  <rect x="29" y="75" width="42" height="6" rx="2" fill="#efdebf"/>
+</svg>

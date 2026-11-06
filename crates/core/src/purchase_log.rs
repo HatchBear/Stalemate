@@ -102,6 +102,10 @@ impl PurchaseLog {
     pub fn update(&mut self, state: &LiveSafeState, tree: &impl ItemTree) -> Vec<PurchaseEvent> {
         let mut new = Vec::new();
         for p in &state.players {
+            // Bots share account 0, so they can't be tracked per player.
+            if p.account_id == 0 {
+                continue;
+            }
             let Some(items) = &p.items else { continue };
             let prev = self
                 .last
@@ -246,7 +250,7 @@ mod tests {
     }
 
     #[test]
-    fn hidden_ally_items_produce_no_events() {
+    fn every_player_produces_events_but_bots_are_skipped() {
         use crate::game_state::GameState;
         use crate::live_safe::{project_state, Whitelist};
         use crate::types::{ParserEvent, RosterEntry};
@@ -260,7 +264,19 @@ mod tests {
         };
         gs.apply(
             &ParserEvent::Roster {
-                players: vec![roster(1, 0), roster(2, 0), roster(3, 1)],
+                players: vec![
+                    roster(1, 0),
+                    roster(2, 0),
+                    roster(3, 1),
+                    RosterEntry {
+                        account_id: 0,
+                        ..roster(8, 1)
+                    },
+                    RosterEntry {
+                        account_id: 0,
+                        ..roster(9, 1)
+                    },
+                ],
             },
             now,
         );
@@ -276,6 +292,7 @@ mod tests {
         let mut log = PurchaseLog::new(9);
         let evs = log.update(&project_state(&gs, &Whitelist::default()), &Tree);
         let ids: HashSet<_> = evs.iter().map(|e| e.account_id).collect();
-        assert_eq!(ids, HashSet::from([1, 3]), "ally 2 must be hidden");
+        // LS-04 covers every player (DEC-059). Bots (account 0) can't be tracked per player.
+        assert_eq!(ids, HashSet::from([1, 2, 3]));
     }
 }

@@ -1,6 +1,6 @@
 name: release
-# Skeleton (doc 15). Runs on a v* tag, builds both packages through the reusable
-# workflows, and attaches them to a GitHub Release.
+# Runs on a v* tag, builds every package through the reusable workflows, and attaches them
+# to a GitHub Release: .flatpak, MSI and portable zip, .deb, .rpm, AppImage and tarball.
 on:
   push:
     tags: ['v*']
@@ -10,6 +10,9 @@ permissions:
 
 jobs:
   # DEC-049: no public release while the build includes haste and mars (no licence).
+  # DEC-071: a v*-alpha.* tag is a closed Alpha for invited testers. It runs the check in
+  # closed-Alpha mode (warning, not failure) and only ever makes a draft release.
+  # Beta and stable tags still fail until mars is licensed.
   release-check:
     runs-on: ubuntu-latest
     steps:
@@ -21,7 +24,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libx11-dev libxcb1-dev libgl1-mesa-dev libdbus-1-dev cmake protobuf-compiler libprotobuf-dev
-      - run: bash scripts/release-check.sh
+      - name: Release check
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          case "$TAG" in
+            v*-alpha.*) bash scripts/release-check.sh --closed-alpha ;;
+            *) bash scripts/release-check.sh ;;
+          esac
 
   flatpak:
     needs: release-check
@@ -31,8 +41,34 @@ jobs:
     needs: release-check
     uses: ./.github/workflows/windows.yml
 
+  linux-native:
+    needs: release-check
+    uses: ./.github/workflows/linux-native.yml
+
+  # Updates the AUR package files for this tag. Nothing is pushed to the AUR (DEC-064): the
+  # author publishes packaging/aur/ by hand from the artifact. Pre-release tags are skipped,
+  # so closed Alpha tags never reach the AUR (DEC-071).
+  aur:
+    needs: release-check
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set pkgver and checksum from the tag tarball
+        run: bash scripts/aur-update.sh "${{ github.ref_name }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aur-package
+          path: |
+            packaging/aur/PKGBUILD
+            packaging/aur/.SRCINFO
+          include-hidden-files: true
+          if-no-files-found: error
+
   release:
-    needs: [flatpak, windows]
+    needs: [flatpak, windows, linux-native, aur]
+    # aur is skipped for pre-release tags; the release still goes ahead.
+    if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,9 +81,16 @@ jobs:
           files: |
             dist/**/*.flatpak
             dist/**/*.msi
-            dist/**/*.exe
+            dist/**/*.zip
+            dist/**/*.deb
+            dist/**/*.rpm
+            dist/**/*.AppImage
+            dist/**/*.tar.gz
           # 0.x is Alpha or Beta (doc 15). Mark it as a prerelease. Stable is 1.0.0 and up.
           prerelease: ${{ startsWith(github.ref_name, 'v0.') }}
+          # DEC-071: closed Alpha tags make a draft, never a public release. The author shares
+          # it with invited testers by hand.
+          draft: ${{ contains(github.ref_name, '-alpha.') }}
           generate_release_notes: true
           # TODO: release notes must name the tested game patch (release checklist, doc 15).
 
@@ -55,7 +98,7 @@ jobs:
   # (github.com/flathub/io.github.hatchbear.stalemate) with the new tag and commit.
   # Disabled until the Flathub submission exists.
   flathub-pr:
-    if: false
+    if: ${{ vars.ENABLE_FLATHUB_PR == 'true' }}
     needs: release
     runs-on: ubuntu-latest
     steps:

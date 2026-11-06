@@ -30,9 +30,6 @@ use crate::api_client::{AccountRank, ApiClient, ApiError, MatchHistoryEntry, Pla
 use crate::settings::Rules;
 use crate::{AccountId, GameSecs, HeroId, RosterEntry};
 
-/// How many top heroes the card lists (doc 05, Scouting Card fields).
-const MAINS_SHOWN: usize = 5;
-
 /// API enum values the card logic needs. Defaults match real responses (`game_mode` 1 is normal).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ScoutingModes {
@@ -166,14 +163,19 @@ pub fn slope_per_10(series: &[f64]) -> Option<f64> {
 }
 
 /// DEC-051: the most recent `mmr_window` ranked matches with a `ranked_delta`, oldest first,
-/// as a cumulative series starting at 0, then the slope per 10 matches.
-pub fn mmr_trend(history: &[MatchHistoryEntry], mmr_window: u32) -> Option<f64> {
+/// as a cumulative series starting at 0, then the slope per 10 matches. Fewer than `min_points`
+/// ranked matches in the window means "not enough data", not a trend of 0 (DEC-061, DATA-001
+/// `[scouting] mmr_trend_min_points`).
+pub fn mmr_trend(history: &[MatchHistoryEntry], mmr_window: u32, min_points: u32) -> Option<f64> {
     let mut ranked: Vec<&MatchHistoryEntry> = history
         .iter()
         .filter(|m| m.ranked_delta.is_some())
         .collect();
     ranked.sort_by_key(|m| std::cmp::Reverse(m.start_time));
     ranked.truncate(mmr_window as usize);
+    if ranked.len() < min_points as usize {
+        return None;
+    }
     let mut total = 0.0;
     let mut series = vec![0.0];
     for m in ranked.iter().rev() {
@@ -326,6 +328,8 @@ impl<S: ScoutingSource + 'static> ScoutingService<S> {
 
         let history_window = rules.scouting.history_window;
         let mmr_window = rules.scouting.mmr_window;
+        let mmr_min_points = rules.scouting.mmr_trend_min_points;
+        let mains_shown = rules.scouting.mains_shown as usize;
         let modes = self.modes;
         let mut set = JoinSet::new();
 
@@ -338,7 +342,9 @@ impl<S: ScoutingSource + 'static> ScoutingService<S> {
                         for id in &ids {
                             let mine: Vec<&PlayerHeroStats> =
                                 rows.iter().filter(|r| r.account_id == *id).collect();
-                            update(&shared, &tx, *id, |c| apply_hero_stats(c, &mine));
+                            update(&shared, &tx, *id, |c| {
+                                apply_hero_stats(c, &mine, mains_shown)
+                            });
                         }
                     }
                     Err(e) => {
@@ -387,7 +393,7 @@ impl<S: ScoutingSource + 'static> ScoutingService<S> {
                 match src.match_history(id).await {
                     Ok(h) => update(&shared, &tx, id, |c| {
                         c.wl_recent = Some(recent_wl(&h, history_window, &modes));
-                        c.mmr_trend_per_10 = mmr_trend(&h, mmr_window);
+                        c.mmr_trend_per_10 = mmr_trend(&h, mmr_window, mmr_min_points);
                     }),
                     Err(e) => fail(&shared, &tx, id, &e, "match-history"),
                 }
@@ -412,7 +418,7 @@ fn clone_err(e: &ApiError) -> ApiError {
     }
 }
 
-fn apply_hero_stats(c: &mut ScoutingCard, rows: &[&PlayerHeroStats]) {
+fn apply_hero_stats(c: &mut ScoutingCard, rows: &[&PlayerHeroStats], mains_shown: usize) {
     let matches: u32 = rows.iter().map(|r| r.matches_played).sum();
     let wins: u32 = rows.iter().map(|r| r.wins).sum();
     c.wl_overall = Some(WlOverall { wins, matches });
@@ -433,7 +439,7 @@ fn apply_hero_stats(c: &mut ScoutingCard, rows: &[&PlayerHeroStats]) {
         })
         .collect();
     mains.sort_by(|a, b| b.matches.cmp(&a.matches).then(a.hero_id.cmp(&b.hero_id)));
-    mains.truncate(MAINS_SHOWN);
+    mains.truncate(mains_shown);
     c.mains = mains;
 }
 
