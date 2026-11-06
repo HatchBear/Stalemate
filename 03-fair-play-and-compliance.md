@@ -54,10 +54,10 @@ A field is Live-Safe if a player could see it in-game at that moment. Fields mar
 | LS-02 | Player display name | Every player | Yes | Confirmed | Visible in-game |
 | LS-03 | Team | Every player | Yes | Confirmed | Visible in-game |
 | LS-04 | Items owned, and item purchases and sales | Enemies | Yes | Confirmed | The [shop purchase log shows enemy purchases](https://mobalytics.gg/ja_jp/deadlock/guides/patch-notes) |
-| LS-05 | Items owned | Allies | Yes | Confirmed (T-007, DEC-048) | Scoreboard |
+| LS-05 | Items owned | Every Player | Yes | Confirmed (T-007, DEC-048) | Scoreboard |
 | LS-06 | Kills, deaths, assists | Every player | Yes | Confirmed (T-007, DEC-048) | Scoreboard |
 | LS-07 | Level | Every player | Yes | Confirmed (T-007, DEC-048) | Scoreboard |
-| LS-08 | Souls or net worth | Enemies | Yes | Confirmed (T-007, DEC-048) | Scoreboard |
+| LS-08 | Souls or net worth | Every player | Yes | Confirmed (T-007, DEC-048) | Scoreboard |
 | LS-09 | Assigned lane | Every player | Yes | Confirmed (T-007, DEC-048) | Scoreboard |
 | LS-10 | Match clock | Match | Yes | Confirmed | HUD |
 | LS-11 | Objectives destroyed (guardians, walkers, shrines, patron) | Match | Yes | Confirmed (T-007, DEC-048) | HUD and map |
@@ -70,7 +70,6 @@ A field is Live-Safe if a player could see it in-game at that moment. Fields mar
 - Enemy positions.
 - Enemy health, ability cooldowns and ultimate state.
 - Enemy team chat.
-- The build an enemy selected at game start.
 - Any data on unseen enemies beyond LS-01 to LS-07.
 
 ### Enforcement
