@@ -132,6 +132,7 @@ Lists every functional and non-functional requirement with a unique ID, MoSCoW p
 | FR-SET-001 | LLM provider setting: Off, Local (OpenAI-compatible HTTP on localhost) or Own API key | Must | Beta | DEC-009, DEC-011 | TST-100 |
 | FR-SET-002 | Export all local data as JSON, and delete all local data | Should | v1 | [ASSUMPTION] | TST-101 |
 | FR-SET-003 | First-run setup that explains how to add `-condebug` to Deadlock's launch options and checks it worked | Must | Alpha | R | TST-102 |
+| FR-SET-005 | Save a diagnostics file the user can send to the developer by hand: what the app detected, timings, errors and performance, with personal data removed. Nothing is uploaded (DEC-070) | Must | Alpha | U (DEC-070) | TST-108 |
 | FR-SET-004 | Check GitHub Releases for a newer app version at startup. On by default, and can be turned off in Settings | Should | Beta | DEC-028 | TST-106 |
 
 ### Non-functional requirements
@@ -141,6 +142,7 @@ Lists every functional and non-functional requirement with a unique ID, MoSCoW p
 | NFR-PLAT-001 | Ships as a Flatpak and runs on KDE Plasma 6 under Wayland | Must | Alpha | U (DEC-007) | TST-090 |
 | NFR-PLAT-002 | Finds Deadlock under both the native Steam install and the Flatpak Steam install | Must | Alpha | [ASSUMPTION] | TST-092 |
 | NFR-PLAT-003 | Runs on Windows 10 and 11, x64 | Must | Beta | DEC-007 | TST-091 |
+| NFR-PLAT-005 | Ships native Linux packages besides the Flatpak: an AUR package, `.deb`, `.rpm`, an AppImage and a tarball, x86_64, built in CI from the same tagged source | Should | Alpha | U (DEC-064) | TST-094 |
 | NFR-PLAT-004 | Main window works on other Linux desktops; overlay is best effort there | Could | v1 | [ASSUMPTION] | TST-093 |
 | NFR-PERF-001 | Average CPU ≤ 3% of one core over 60 s in Live Mode | Must | Beta | SM-7 | TST-070 |
 | NFR-PERF-002 | Resident memory ≤ 400 MB in Live Mode | Must | Beta | SM-8 | TST-071 |

@@ -44,6 +44,22 @@ pub enum CheckId {
     AccountId,
     Broadcast,
     DeadlockApi,
+    /// The Match Watcher's log patterns are configured (T-006, FR-DATA-001).
+    MatchWatcher,
+}
+
+/// Where the app is in a match (doc 10, App state machine).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Hash)]
+pub enum Phase {
+    #[default]
+    Idle,
+    MatchDetected,
+    Live,
+    LiveNoBroadcast,
+    AwaitingBroadcastEnd,
+    Reviewing,
+    /// The settings or rules couldn't be loaded, so the pipeline didn't start.
+    Stopped,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -54,9 +70,21 @@ pub struct SetupCheck {
     pub value: Option<String>,
 }
 
+/// How a match ended. Four states (DEC-066 review): an abandoned match has its own label, and
+/// an unknown or missing result is "no result". Neither is ever shown as a loss.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Outcome {
+    Win,
+    Loss,
+    /// Unknown, or NULL in storage.
+    #[default]
+    NoResult,
+    Abandoned,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MatchSummary {
-    pub won: bool,
+    pub outcome: Outcome,
     pub hero_name: String,
     pub duration_secs: DurationSecs,
     pub ended_ago_secs: Option<u64>,
@@ -68,6 +96,7 @@ pub struct HomeVm {
     pub last_match: Option<MatchSummary>,
     /// Result of the last "Check again" in the first-run setup step.
     pub setup_result: CheckState,
+    pub phase: Phase,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -135,6 +164,8 @@ pub enum CardBody {
     Loading,
     /// A bot or an empty slot: the hero only.
     HeroOnly,
+    /// The lookup failed after retries. Not the same as an opt-out.
+    Unavailable,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -156,11 +187,28 @@ pub struct ScoutingVm {
     pub enemy_team: Vec<ScoutCardVm>,
 }
 
+/// An item's shop category (DEC-068). It comes from the item's `slot` in API-15 at runtime;
+/// `None` when the catalog has no slot for the item, which shows as a neutral chip.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ItemCategory {
+    Weapon,
+    Vitality,
+    Spirit,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ItemVm {
     pub name: String,
     /// Runtime-loaded art path (API-15). `None` until the asset cache has it.
     pub icon: Option<PathBuf>,
+    pub category: Option<ItemCategory>,
+}
+
+/// A named group of items: a build section.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SectionVm {
+    pub title: String,
+    pub items: Vec<ItemVm>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -173,8 +221,13 @@ pub struct Kda {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnemyRowVm {
     pub hero_name: String,
+    /// Small hero icon from the runtime image cache, if it is there.
+    pub portrait: Option<PathBuf>,
     pub player_name: String,
+    pub team: Side,
     pub items: Vec<ItemVm>,
+    /// LS-08, allowed for every player (DEC-059). `None` hides the column.
+    pub souls: Option<u32>,
     /// Blocked until verified (T-007): `None` for every row hides the column.
     pub kda: Option<Kda>,
     pub level: Option<u8>,
@@ -192,6 +245,7 @@ pub struct PurchaseEntryVm {
     pub t_game_secs: DurationSecs,
     pub player_name: String,
     pub item_name: String,
+    pub category: Option<ItemCategory>,
     pub action: PurchaseAction,
 }
 
@@ -214,12 +268,18 @@ impl LiveVm {
     pub fn show_level(&self) -> bool {
         self.enemies.iter().any(|e| e.level.is_some())
     }
+
+    pub fn show_souls(&self) -> bool {
+        self.enemies.iter().any(|e| e.souls.is_some())
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReviewListItemVm {
     pub match_id: u64,
-    pub won: bool,
+    /// The match is saved but its Review isn't ready: API-05 had nothing yet. Offers a retry.
+    pub pending: bool,
+    pub outcome: Outcome,
     pub hero_name: String,
     pub duration_secs: DurationSecs,
     pub ended_ago_secs: Option<u64>,
@@ -232,6 +292,8 @@ pub enum SoulSourceKind {
     Breakables,
     Urn,
     SinnersSacrifice,
+    /// Every other source, so the rows add up to the total.
+    Other,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -244,7 +306,7 @@ pub struct SoulSourceVm {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReviewReportVm {
     pub match_id: u64,
-    pub won: bool,
+    pub outcome: Outcome,
     pub hero_name: String,
     pub duration_secs: DurationSecs,
     /// When the lane lead was measured, in game seconds. From config (9:00 = 540).
@@ -277,6 +339,8 @@ pub struct BuildVm {
     pub hero_name: String,
     pub source: BuildSource,
     pub item_count: u32,
+    /// The build's sections with their items and categories (DEC-068).
+    pub sections: Vec<SectionVm>,
     /// The active plan for its hero (FR-BUILD-005).
     pub active: bool,
     /// "Needs update: N items removed" (FR-BUILD-006).
@@ -288,6 +352,7 @@ pub struct CommunityBuildVm {
     pub name: String,
     pub hero_name: String,
     pub usage: u32,
+    pub sections: Vec<SectionVm>,
 }
 
 /// A hero or an item the user can pick, from API-15 at runtime.
@@ -295,6 +360,8 @@ pub struct CommunityBuildVm {
 pub struct NamedOption {
     pub id: u32,
     pub name: String,
+    /// Items only: the shop category from the catalog. Heroes leave it `None`.
+    pub category: Option<ItemCategory>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -309,7 +376,16 @@ pub struct BuildsVm {
 #[derive(Clone, Debug, Default)]
 pub struct SettingsVm {
     pub account_id: Option<u32>,
+    /// The last Account ID the user typed was not valid.
+    pub account_invalid: bool,
     pub version: String,
+    /// "Save diagnostics while I play" (FR-SET-005).
+    pub diag_enabled: bool,
+    /// The save panel is open, showing `diag_preview`.
+    pub diag_open: bool,
+    /// What the diagnostics file will hold, as plain lines.
+    pub diag_preview: Vec<String>,
+    pub diag_result: crate::diag::SaveResult,
 }
 
 /// Everything the main window shows.
@@ -348,6 +424,9 @@ mod tests {
         let row = |kda, level| EnemyRowVm {
             hero_name: "Hero 1".into(),
             player_name: "Player 1".into(),
+            portrait: None,
+            team: Side::Sapphire,
+            souls: None,
             items: vec![],
             kda,
             level,

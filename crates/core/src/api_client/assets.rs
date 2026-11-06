@@ -45,7 +45,8 @@ pub struct ItemAsset {
     /// Souls. 0 for items without a price.
     pub cost: u32,
     pub tier: Option<u32>,
-    /// `"weapon"`, `"armor"` or `"tech"` on shop items.
+    /// `"weapon"`, `"vitality"` or `"spirit"` on shop items. Older data may say
+    /// `"armor"` (vitality) or `"tech"` (spirit).
     pub slot: Option<String>,
     pub shopable: bool,
     /// Disabled items stay in the data after a removal. Treated as not available.
@@ -422,7 +423,7 @@ mod tests {
             Some("https://cdn.example/x_card.png")
         );
         let items = br#"[{"id":4284855775,"class_name":"upgrade_big","name":"Big","type":"upgrade",
-            "cost":3200,"item_tier":3,"item_slot_type":"tech","shopable":true,
+            "cost":3200,"item_tier":3,"item_slot_type":"spirit","shopable":true,
             "component_items":["upgrade_small"]},
             {"id":5,"class_name":"ability_q","name":"Q","type":"ability"}]"#;
         let i = parse_items(items).unwrap();
@@ -448,7 +449,7 @@ mod tests {
     fn image_paths_stay_inside_the_patch_folder() {
         let d = AssetDirs::new(Path::new("/data"));
         let p = d.image_path("../../etc", ImageKind::Item, 5, "https://x/y/a.webp?v=2");
-        assert!(p.starts_with("/data/assets/"));
+        assert!(p.starts_with(Path::new("/data").join("assets")));
         assert!(!p
             .components()
             .any(|c| matches!(c, std::path::Component::ParentDir)));
@@ -456,10 +457,9 @@ mod tests {
             .patch_dir("..")
             .components()
             .any(|c| matches!(c, std::path::Component::ParentDir)));
-        assert!(p.to_string_lossy().ends_with("/items/5.webp"));
+        assert!(p.ends_with(Path::new("items").join("5.webp")));
         assert!(d
             .image_path("1", ImageKind::HeroCard, 1, "https://x/noext")
-            .to_string_lossy()
-            .ends_with("/heroes/card/1.png"));
+            .ends_with(Path::new("heroes").join("card").join("1.png")));
     }
 }

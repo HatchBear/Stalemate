@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stalemate · Closed Alpha Field Guide</title>
+<style>
+@font-face{font-family:"Barlow Display";src:url(data:font/ttf;base64,{{FONT_BARLOW}}) format("truetype");font-weight:800;}
+@font-face{font-family:"Jost";src:url(data:font/ttf;base64,{{FONT_JOST}}) format("truetype");font-weight:100 900;}
+:root{
+  --edge:#161414;--base:#222021;--glow:#3a2b20;--paper:#45433d;--rule:#5c584f;
+  --cream:#efdebf;--muted:#d9cfbd;--mint:#5fd69a;--mint-ink:#0f2a1c;
+  --parch:#d8c49c;--ink:#2b2118;--key:#d9d2c3;--red:#8f2621;
+  --weapon:#e8b417;--vital:#8cc63f;--spirit:#6b3fa0;
+  --amber:#6F3806;--amber-l:#FBDCA0;--sapph:#243265;--sapph-l:#BDCBFF;
+}
+*{box-sizing:border-box}
+html{background:var(--edge)}
+body{margin:0;color:var(--cream);font:17px/1.6 "Jost",system-ui,sans-serif;
+  background:
+    radial-gradient(ellipse 70% 55% at 55% 18%, rgba(58,43,32,.95), rgba(22,20,20,0) 70%),
+    radial-gradient(ellipse 120% 90% at 50% 50%, var(--base), var(--edge));
+  background-attachment:fixed;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.10;z-index:0;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 .95  0 0 0 0 .85  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+body::after{content:"";position:fixed;left:-30vmax;top:-30vmax;width:120vmax;height:120vmax;pointer-events:none;opacity:.035;z-index:0;
+  background:repeating-radial-gradient(circle at 25% 25%, var(--cream) 0 1px, transparent 1px 46px),
+             repeating-conic-gradient(from 0deg at 25% 25%, var(--cream) 0 .25deg, transparent .25deg 9deg)}
+main{position:relative;z-index:1;max-width:1040px;margin:0 auto;padding:40px 28px 80px}
+h1,h2,h3,.disp{font-family:"Barlow Display","Arial Narrow",sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.01em;line-height:1.02;margin:0}
+a{color:var(--mint)}
+code,kbd{font-family:ui-monospace,"Cascadia Mono","DejaVu Sans Mono",monospace;font-size:.86em}
+code{background:var(--edge);color:var(--cream);padding:.12em .4em;border-radius:3px;border:1px solid #2f2c28}
+pre{background:var(--edge);border:1px solid #2f2c28;box-shadow:inset 2px 2px 6px rgba(0,0,0,.6);padding:12px 14px;border-radius:3px;overflow:auto;margin:.6em 0}
+pre code{background:none;border:0;padding:0}
+
+/* masthead */
+.mast{display:flex;gap:26px;align-items:center;margin:10px 0 18px}
+.mast svg{width:108px;height:108px;flex:none;filter:drop-shadow(0 3px 0 rgba(0,0,0,.45))}
+.mast h1{font-size:clamp(54px,9vw,96px);color:var(--cream);text-shadow:0 3px 0 rgba(0,0,0,.45)}
+.mast .sub{font-family:"Barlow Display";font-weight:800;text-transform:uppercase;letter-spacing:.32em;color:var(--muted);font-size:15px;margin-top:6px}
+.lede{font-size:20px;color:var(--muted);max-width:760px;margin:6px 0 10px}
+.fine{color:#a9a08f;font-size:14px}
+
+/* brush highlight */
+.brush{display:inline-block;position:relative;padding:.05em .45em .02em;color:var(--mint-ink);z-index:0}
+.brush::before{content:"";position:absolute;inset:-.12em -.25em;z-index:-1;background:var(--mint);
+  filter:url(#rough);border-radius:2px}
+
+/* section heads */
+.sec{margin:64px 0 18px;display:flex;align-items:center;gap:16px}
+.sec h2{font-size:clamp(34px,5vw,50px);color:var(--mint)}
+.under{height:7px;width:150px;background:var(--mint);filter:url(#rough);margin:8px 0 0;border-radius:3px;opacity:.95}
+.tag{font-family:"Barlow Display";font-weight:800;background:var(--parch);color:var(--ink);padding:3px 11px 2px;font-size:22px;
+  transform:rotate(-2deg);box-shadow:2px 3px 0 rgba(0,0,0,.45);display:inline-block;flex:none;
+  clip-path:polygon(0 6%,100% 0,98% 100%,2% 94%)}
+
+/* panels */
+.paper{background:var(--paper);position:relative;padding:26px 28px;margin:16px 0;box-shadow:0 10px 24px rgba(0,0,0,.45);
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='.012 .05' numOctaves='3'/><feColorMatrix values='0 0 0 0 .9  0 0 0 0 .87  0 0 0 0 .8  0 0 0 .07 0'/></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>")}
+.paper::after{content:"";position:absolute;left:1px;right:1px;bottom:0;height:3px;background:rgba(0,0,0,.22);pointer-events:none}
+.paper{border:1px solid var(--base)}
+.parch{background:var(--parch);color:var(--ink);position:relative;padding:24px 26px;margin:16px 0;box-shadow:0 10px 24px rgba(0,0,0,.45);
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='q'><feTurbulence type='fractalNoise' baseFrequency='.02 .06' numOctaves='3'/><feColorMatrix values='0 0 0 0 .55  0 0 0 0 .42  0 0 0 0 .25  0 0 0 .10 0'/></filter><rect width='100%' height='100%' filter='url(%23q)'/></svg>")}
+.parch::after{content:"";position:absolute;inset:7px;border:1.5px dashed rgba(43,33,24,.45);pointer-events:none}
+.parch h3{color:var(--ink)} .parch code{background:#efe3c7;color:var(--ink);border-color:#b89f72}
+.parch pre{background:#2b2118;color:var(--parch)}
+pre code,.parch pre code{background:none!important;border:0!important;color:inherit!important;padding:0}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px}
+.paper h3,.parch h3{font-size:28px;margin:0 0 4px}
+.rule{height:4px;width:70px;background:var(--rule);filter:url(#rough);margin:4px 0 14px;border-radius:2px}
+.parch .rule{background:#8c7550}
+
+/* platform grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:18px}
+@media (max-width:520px){.grid{grid-template-columns:1fr}}
+.grid .parch,.grid .paper{margin:0}
+.pill{font-family:"Barlow Display";font-weight:800;text-transform:uppercase;font-size:13px;letter-spacing:.06em;
+  display:inline-block;padding:2px 9px;background:var(--ink);color:var(--parch);margin-right:6px}
+.paper .pill{background:var(--edge);color:var(--muted)}
+
+/* steps */
+ol.steps{counter-reset:s;list-style:none;padding:0;margin:8px 0}
+ol.steps>li{counter-increment:s;position:relative;padding:4px 0 10px 54px}
+ol.steps>li::before{content:counter(s);position:absolute;left:0;top:2px;width:38px;height:34px;display:grid;place-items:center;
+  font-family:"Barlow Display";font-weight:800;font-size:22px;background:var(--key);color:var(--base);
+  border-radius:4px;box-shadow:0 3px 0 #8a8476}
+kbd{display:inline-block;background:var(--key);color:var(--base);border-radius:4px;padding:1px 8px;box-shadow:0 2px 0 #8a8476;font-family:"Barlow Display";font-weight:800;font-size:.9em;letter-spacing:.04em}
+
+/* feature cards */
+.feat{display:grid;grid-template-columns:1.25fr 1fr;gap:26px;align-items:start}
+@media (max-width:860px){.feat{grid-template-columns:1fr}}
+.shot{display:block;width:100%;border:1px solid #0e0d0d;box-shadow:0 14px 30px rgba(0,0,0,.6);transform:rotate(-.6deg);background:#000}
+.feat:nth-of-type(even) .shot{transform:rotate(.6deg)}
+.try{list-style:none;padding:0;margin:6px 0}
+.try li{padding:5px 0 5px 30px;position:relative}
+.try li::before{content:"";position:absolute;left:4px;top:.75em;width:13px;height:13px;border:2px solid var(--mint);transform:rotate(45deg)}
+.see{margin-top:10px;padding:10px 14px;background:rgba(22,20,20,.55);border-left:0;position:relative}
+.see b{font-family:"Barlow Display";text-transform:uppercase;color:var(--mint);letter-spacing:.04em}
+
+/* stamps and item tags */
+.stamp{display:inline-block;font-family:"Barlow Display";font-weight:800;text-transform:uppercase;padding:4px 12px 2px;font-size:18px;
+  transform:rotate(-2deg);box-shadow:2px 3px 0 rgba(0,0,0,.45)}
+.stamp.pass{background:var(--mint);color:var(--mint-ink)} .stamp.fail{background:var(--red);color:var(--cream);transform:rotate(1.5deg)}
+.stamp.wait{background:var(--parch);color:var(--ink);transform:rotate(-1deg)}
+.cat{display:inline-block;font-family:"Barlow Display";font-weight:800;text-transform:uppercase;font-size:14px;padding:2px 8px;border:1px solid var(--ink);margin:2px 2px}
+.cat.w{background:var(--weapon);color:var(--ink)} .cat.v{background:#5f9128;color:#161414} .cat.s{background:#5a2f8c;color:var(--cream)}
+
+.team{display:inline-block;font-family:"Barlow Display";font-weight:800;text-transform:uppercase;padding:1px 9px;font-size:14px}
+.team.a{background:var(--amber);color:var(--amber-l)} .team.b{background:var(--sapph);color:var(--sapph-l)}
+
+/* never list */
+.never li{padding:3px 0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px} @media (max-width:760px){.two{grid-template-columns:1fr}}
+
+/* footer keycaps */
+.foot{margin-top:70px;padding-top:20px;border-top:1px solid #2f2c28;display:flex;flex-wrap:wrap;gap:18px;align-items:center;color:#a9a08f;font-size:14px}
+.foot .k{display:flex;gap:8px;align-items:center;font-family:"Barlow Display";font-weight:800;text-transform:uppercase;color:var(--cream)}
+.warn{background:var(--red);color:var(--cream);padding:12px 16px;margin:12px 0;font-weight:500}
+nav.toc{display:flex;flex-wrap:wrap;gap:6px 18px;margin:18px 0 0}
+nav.toc a{font-family:"Barlow Display";font-weight:800;text-transform:uppercase;color:var(--cream);text-decoration:none;font-size:19px}
+nav.toc a:hover{color:var(--mint)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="rough" x="-10%" y="-40%" width="120%" height="180%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.035 0.6" numOctaves="2" seed="7"/>
+    <feDisplacementMap in="SourceGraphic" scale="9" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+<main>
+
+<header class="mast">
+  {{EMBLEM}}
+  <div>
+    <h1>Stalemate</h1>
+    <div class="sub">Closed Alpha · Field Guide</div>
+  </div>
+</header>
+<p class="lede">A free companion app for Deadlock. It scouts the players in your match, follows the enemy team's items while you play, and reviews your match when it ends. This guide gets you installed, set up, and testing everything the Alpha can do.</p>
+<p class="fine">Stalemate is free software (GPL-3.0). It isn't made by, affiliated with, or endorsed by Valve. It never reads the game's memory, changes its files, or sends it input. Everything it shows comes from data Deadlock and the public deadlock-api already make available, and only what you could see in the game yourself.</p>
+
+<nav class="toc">
+  <a href="#install">Install</a><a href="#setup">Set up</a><a href="#try">Features to try</a><a href="#report">Report a problem</a><a href="#notyet">Not in Alpha</a><a href="#windows">Windows checklist</a>
+</nav>
+
+<!-- 1 INSTALL -->
+<div class="sec" id="install"><span class="tag">01</span><h2>Install</h2></div>
+<div class="under"></div>
+<p>Use the file you were sent. Alpha builds are private, so they aren't on Flathub, the AUR or any store yet. Pick one way for your system.</p>
+
+<div class="grid">
+  <div class="parch">
+    <h3>Linux: Flatpak</h3><div class="rule"></div>
+    <span class="pill">Any distro</span><span class="pill">Recommended</span>
+    <p>Needs the free Flathub repository for the KDE runtime.</p>
+<pre><code>flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak install --user ./stalemate.flatpak
+flatpak run io.github.hatchbear.stalemate</code></pre>
+    <p>It works with both normal Steam and Flatpak Steam.</p>
+  </div>
+  <div class="parch">
+    <h3>Debian, Ubuntu, Mint, Pop!_OS</h3><div class="rule"></div>
+    <span class="pill">.deb</span>
+<pre><code>sudo apt install ./stalemate_&lt;version&gt;_amd64.deb
+stalemate</code></pre>
+    <p>Ubuntu 22.04 or newer, or Debian 12 or newer.</p>
+  </div>
+  <div class="parch">
+    <h3>Fedora, openSUSE</h3><div class="rule"></div>
+    <span class="pill">.rpm</span>
+<pre><code>sudo dnf install ./stalemate-&lt;version&gt;-1.x86_64.rpm
+stalemate</code></pre>
+  </div>
+  <div class="parch">
+    <h3>Arch, CachyOS, anything else</h3><div class="rule"></div>
+    <span class="pill">AppImage</span><span class="pill">tarball</span>
+    <p>AppImage: no install needed.</p>
+<pre><code>chmod +x Stalemate-&lt;version&gt;-x86_64.AppImage
+./Stalemate-&lt;version&gt;-x86_64.AppImage</code></pre>
+    <p>Tarball: unpack it and run <code>./stalemate</code> from the folder. Keep the <code>config</code> and <code>i18n</code> folders next to it. The AUR package arrives with the public release.</p>
+  </div>
+  <div class="paper">
+    <h3>Windows 11: installer</h3><div class="rule"></div>
+    <span class="pill">.msi</span>
+    <ol class="steps">
+      <li>Double-click <code>stalemate-&lt;version&gt;-x64.msi</code>. It installs for you only and needs no admin rights.</li>
+      <li>Windows shows <b>"Windows protected your PC"</b>, because Alpha builds aren't code-signed yet. Choose <b>More info</b>, then <b>Run anyway</b>.</li>
+      <li>Open <b>Stalemate</b> from the Start menu.</li>
+    </ol>
+  </div>
+  <div class="paper">
+    <h3>Windows 11: portable</h3><div class="rule"></div>
+    <span class="pill">.zip</span>
+    <p>Unzip <code>stalemate-&lt;version&gt;-windows-x64-portable.zip</code> anywhere and run <code>stalemate.exe</code>. Keep the <code>config</code> and <code>i18n</code> folders next to it. You'll see the same SmartScreen warning the first time.</p>
+  </div>
+</div>
+<p class="fine">To check which build you have, run <code>stalemate --version</code>. It prints the version and the package type, for example <code>stalemate 0.1.0 (flatpak)</code>.</p>
+
+<!-- 2 SETUP -->
+<div class="sec" id="setup"><span class="tag">02</span><h2>Set up</h2></div>
+<div class="under"></div>
+<div class="feat">
+  <div class="paper">
+    <h3>Turn on the game log</h3><div class="rule"></div>
+    <p>Stalemate learns when a match starts from a log file Deadlock writes. Deadlock only writes it with the <code>-condebug</code> launch option.</p>
+    <ol class="steps">
+      <li>In Steam, open your Library and right-click <b>Deadlock</b>.</li>
+      <li>Choose <b>Properties</b>, then stay on the <b>General</b> tab.</li>
+      <li>In <b>Launch Options</b>, type <code>-condebug</code>.</li>
+      <li>Start Deadlock, reach the main menu, then press <b>Check again</b> in Stalemate.</li>
+    </ol>
+  </div>
+  <div>
+    <img class="shot" alt="Stalemate first-run setup" src="data:image/jpeg;base64,{{IMG_SETUP}}">
+  </div>
+</div>
+<div class="paper">
+  <h3>The setup checks</h3><div class="rule"></div>
+  <p>Home lists every check with a stamp: <span class="stamp pass">Pass</span> &nbsp; <span class="stamp fail">Fail</span> &nbsp; <span class="stamp wait">Pending</span></p>
+  <ul class="try">
+    <li><b>Steam found</b>: it looks in the usual places for normal and Flatpak Steam on Linux, and in the registry on Windows.</li>
+    <li><b>-condebug working</b>: it passes once Deadlock has written its log with the option on.</li>
+    <li><b>Account ID</b>: it's read from Steam automatically. If it fails, enter it in <b>Settings</b>. It's the number in your Steam friend code (Friends, Add a Friend).</li>
+    <li><b>Match detection</b>, <b>Broadcast</b> and <b>deadlock-api</b>: the parts that follow your match.</li>
+  </ul>
+</div>
+
+<!-- 3 FEATURES -->
+<div class="sec" id="try"><span class="tag">03</span><h2>Features to try</h2></div>
+<div class="under"></div>
+<p>Play a normal match with Stalemate open. Each card says what to do and what you should see. If what you see doesn't match, press <b>Mark a problem</b> (see section 04).</p>
+
+<div class="feat">
+  <div><img class="shot" alt="Home screen" src="data:image/jpeg;base64,{{IMG_HOME}}"></div>
+  <div class="paper">
+    <h3>Home</h3><div class="rule"></div>
+    <ul class="try">
+      <li>Open Stalemate before you start Deadlock.</li>
+      <li>Queue for a match.</li>
+      <li>Optional: paste a match ID into <b>Watch a match</b> to follow a match you're not in.</li>
+    </ul>
+    <div class="see"><b>You should see</b><br>The status change to "match detected" within a few seconds of the match loading, then to Live.</div>
+  </div>
+</div>
+
+<div class="feat">
+  <div class="paper">
+    <h3>Scouting</h3><div class="rule"></div>
+    <ul class="try">
+      <li>Open <b>Scouting</b> once your match has started.</li>
+      <li>Check a card for each player: hero, overall record, last 20 matches, rank, top 5 heroes, games on this hero and MMR trend.</li>
+      <li>Your team shows its side, <span class="team a">Amber</span> or <span class="team b">Sapphire</span>.</li>
+    </ul>
+    <div class="see"><b>You should see</b><br>Cards filling in over a few seconds. Players who opted out of public data show <b>No public data</b>. That's correct, and Stalemate never works around it.</div>
+  </div>
+  <div><img class="shot" alt="Scouting screen" src="data:image/jpeg;base64,{{IMG_SCOUTING}}"></div>
+</div>
+
+<div class="feat">
+  <div><img class="shot" alt="Live screen" src="data:image/jpeg;base64,{{IMG_LIVE}}"></div>
+  <div class="paper">
+    <h3>Live: enemy board and Purchase Log</h3><div class="rule"></div>
+    <ul class="try">
+      <li>Open <b>Live</b> during the match.</li>
+      <li>Each enemy shows their items as tiles in the shop's colours, <span class="cat w">Weapon</span><span class="cat v">Vitality</span><span class="cat s">Spirit</span>, along with souls, level and K/D/A.</li>
+      <li>The <b>Purchase Log</b> lists buys, upgrades and sells as they happen.</li>
+    </ul>
+    <div class="see"><b>You should see</b><br>Everything a little behind the game. The <b>Broadcast delay</b> bar at the top says by how much. Only what the in-game scoreboard would show you appears here. Positions, cooldowns, health and chat never do.</div>
+  </div>
+</div>
+
+<div class="feat">
+  <div class="paper">
+    <h3>Reviews</h3><div class="rule"></div>
+    <ul class="try">
+      <li>Finish the match and leave the post-game screen.</li>
+      <li>Open <b>Reviews</b>. Your match appears as soon as deadlock-api has it, usually within a few minutes and at most about 40.</li>
+      <li>If it says <b>Pending</b>, press <b>Try again</b> later.</li>
+    </ul>
+    <div class="see"><b>You should see</b><br>A <span class="stamp pass" style="font-size:14px">Win</span> or Loss stamp, how far ahead or behind in lane souls you were at 9:00, and where your souls came from. Abandoned matches and matches with no result are labelled as such, never as a loss.</div>
+  </div>
+  <div><img class="shot" alt="Review report" src="data:image/jpeg;base64,{{IMG_REVIEW}}"></div>
+</div>
+
+<div class="feat">
+  <div><img class="shot" alt="Builds library" src="data:image/jpeg;base64,{{IMG_BUILDS}}"></div>
+  <div class="paper">
+    <h3>Builds</h3><div class="rule"></div>
+    <ul class="try">
+      <li><b>Community builds</b>: pick a hero, browse the in-game community builds, import one.</li>
+      <li><b>Library</b>: see your builds, with each item tile in its category colour and a count per category. Press <b>Make active</b> on one.</li>
+      <li><b>Build maker</b>: make your own. Name it, add sections, search for items, move them earlier or later.</li>
+    </ul>
+    <div class="see"><b>You should see</b><br>Builds that use items removed by a patch are flagged <b>Needs update</b>.</div>
+  </div>
+</div>
+
+<div class="feat">
+  <div class="paper">
+    <h3>Settings</h3><div class="rule"></div>
+    <ul class="try">
+      <li>Try every <b>text size</b> from 75% to 200%. Everything should stay readable and reachable.</li>
+      <li>Check your <b>Account ID</b>.</li>
+      <li>Read the <b>Privacy</b> notes.</li>
+    </ul>
+  </div>
+  <div class="parch">
+    <h3>Tester habits</h3><div class="rule"></div>
+    <ul class="try">
+      <li>Play normally. Don't change how you play for the app.</li>
+      <li>Try it with the window on a second monitor and behind the game.</li>
+      <li>Quit and reopen it between matches at least once.</li>
+      <li>If anything looks wrong, mark it in the moment, not later.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- 4 REPORT -->
+<div class="sec" id="report"><span class="tag">04</span><h2>Report a problem</h2></div>
+<div class="under"></div>
+<div class="feat">
+  <div class="paper">
+    <h3>Mark it, then send the file</h3><div class="rule"></div>
+    <ol class="steps">
+      <li>When something looks wrong, press <b>Mark a problem</b> on Home or Live and type one line about it. This puts a timestamp in the record so the developer can find the moment.</li>
+      <li>After your session, go to <b>Settings</b>, then <b>Save diagnostics file</b>. You'll see a summary of what's inside. Add a note if you like. Tick <b>Include my Account ID</b> only if you're happy for the developer to look up your matches.</li>
+      <li>The file <code>stalemate-diagnostics-&lt;date&gt;.zip</code> is saved to your Downloads folder. Send it to whoever invited you, with a sentence about what happened.</li>
+    </ol>
+    <p class="fine">Nothing is ever uploaded by the app. You send the file yourself, and everything inside is plain text you can read first. You can turn the recording off in Settings.</p>
+  </div>
+  <div><img class="shot" alt="Save diagnostics file" src="data:image/jpeg;base64,{{IMG_DIAG}}"></div>
+</div>
+<div class="two">
+  <div class="paper">
+    <h3>What's in the file</h3><div class="rule"></div>
+    <ul class="never">
+      <li>App version, package type, system and desktop</li>
+      <li>Every setup check and its result</li>
+      <li>For each match: how fast it was detected and connected, the delay, errors, how fast scouting and the review arrived</li>
+      <li>Processor and memory use during matches</li>
+      <li>Counts of which screens and buttons you used</li>
+      <li>Your problem notes, and the app's own log</li>
+    </ul>
+  </div>
+  <div class="paper">
+    <h3>What's never in it</h3><div class="rule"></div>
+    <ul class="never">
+      <li>Your API key or any password</li>
+      <li>Other players' names or IDs</li>
+      <li>Chat</li>
+      <li>Match recordings or the game's log file</li>
+      <li>Your own Account ID, unless you tick the box</li>
+      <li>Folder names outside Stalemate's own</li>
+    </ul>
+    <p class="fine">A final check refuses to save the file if any of these slips through.</p>
+  </div>
+</div>
+
+<!-- 5 NOT YET -->
+<div class="sec" id="notyet"><span class="tag">05</span><h2>Not in this Alpha</h2></div>
+<div class="under"></div>
+<div class="parch">
+  <ul class="try">
+    <li><b>The in-game overlay.</b> Alpha is the main window only.</li>
+    <li><b>Live item recommendations</b> (what to buy against this enemy team).</li>
+    <li><b>The full coach-style review</b> with key moments and the optional AI coach. Alpha reviews are stats only.</li>
+    <li><b>Ranked-only behaviour</b>, such as the pre-game hero swap phase, hasn't been tested. If you play ranked, tell us how scouting behaves.</li>
+    <li><b>Final art and icons.</b> Hero and item pictures are downloaded when the app runs, and some screens show placeholders.</li>
+  </ul>
+</div>
+
+<!-- 6 WINDOWS -->
+<div class="sec" id="windows"><span class="tag">06</span><h2>Windows checklist</h2></div>
+<div class="under"></div>
+<div class="paper">
+  <p>For a first Windows run. It takes one match.</p>
+  <ol class="steps">
+    <li>Install with the <b>.msi</b> (section 01). Note whether SmartScreen appeared and whether <b>Run anyway</b> worked.</li>
+    <li>Open Stalemate. Note which setup checks pass. <b>Steam found</b> should pass straight away.</li>
+    <li>Add <code>-condebug</code> to Deadlock (section 02), start the game, reach the menu, press <b>Check again</b>.</li>
+    <li>Play one match with Stalemate open. During the match, look at <b>Scouting</b> and <b>Live</b>.</li>
+    <li>After the match, wait for <b>Reviews</b> to show it.</li>
+    <li>Save the diagnostics file (section 04) and send it, with a line on anything odd.</li>
+    <li>Optional: run the portable <b>.zip</b> too and say whether it behaved the same.</li>
+  </ol>
+</div>
+
+<footer class="foot">
+  <span class="k"><kbd>ESC</kbd> Back</span>
+  <span class="k"><kbd>TAB</kbd> Move</span>
+  <span class="k"><kbd>ENTER</kbd> Select</span>
+  <span style="flex:1"></span>
+  <span>Stalemate {{VERSION}} closed Alpha · GPL-3.0 · Not affiliated with Valve · Fonts: Barlow Condensed, Jost (SIL OFL)</span>
+</footer>
+</main>
+</body>
+</html>

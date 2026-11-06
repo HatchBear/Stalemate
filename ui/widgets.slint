@@ -1,6 +1,6 @@
 import { Theme } from "theme.slint";
 import { Icon, IconKind } from "icons.slint";
-import { AppState, Tr, StateUi, DataKind } from "types.slint";
+import { AppState, Tr, StateUi, DataKind, MatchOutcome, ItemCategory, ItemChipUi, TeamSide, Check } from "types.slint";
 
 // Heading and label text: Jost.
 export component HText inherits Text {
@@ -19,10 +19,175 @@ export component BText inherits Text {
     wrap: word-wrap;
 }
 
+// Display text: Barlow Condensed ExtraBold. Callers pass text already upper-cased (Tr.upper).
+export component DText inherits Text {
+    color: Theme.text;
+    font-family: Theme.display-font;
+    font-size: 1.5rem;
+    font-weight: 800;
+    wrap: no-wrap;
+}
+
+// Window backdrop: dark vignette, a warm glow, very faint original arcs and radial lines from the
+// top-left (DEC-074, under 4% opacity) and a faint film grain. Decorative only.
+export component Backdrop inherits Rectangle {
+    background: @radial-gradient(circle, Theme.glow 0%, Theme.edge 90%);
+    clip: true;
+    // Square from the corner, so the arcs stay circular at any window shape.
+    Image {
+        x: 0;
+        y: 0;
+        width: max(parent.width, parent.height);
+        height: self.width;
+        source: @image-url("../assets/ui/lines.png");
+        image-fit: fill;
+    }
+    Image {
+        width: 100%;
+        height: 100%;
+        source: @image-url("../assets/ui/grain.png");
+        horizontal-tiling: repeat;
+        vertical-tiling: repeat;
+    }
+}
+
+// The three panel kinds below size themselves from their content only. A Rectangle with
+// children and no layout takes its size from the room it is given, so a panel in a window
+// taller than its page would swell. Each panel instead sizes to the layout it holds.
+
+// A teal panel: cards, rows and state boxes.
 export component Panel inherits Rectangle {
+    vertical-stretch: 0;
+    preferred-height: body.preferred-height;
+    min-height: body.min-height;
+    max-height: body.preferred-height;
     background: Theme.panel;
+    // No cream stroke: a dark edge and a lower lip, like the button slabs.
     border-width: 1px;
-    border-color: Theme.text;
+    border-color: Theme.base;
+    Rectangle { y: parent.height - 4px; height: 3px; x: 1px; width: parent.width - 2px; background: #00000038; }
+    body := VerticalLayout { @children }
+}
+
+// A grey textured "paper" panel for forms and detail views, with a soft shadow made of layers
+// so it also shows with the software renderer, and an inner rule inset 6 px (DEC-074).
+export component PaperPanel inherits Rectangle {
+    vertical-stretch: 0;
+    preferred-height: body.preferred-height;
+    min-height: body.min-height;
+    max-height: body.preferred-height;
+    Rectangle { x: 3px; y: 5px; width: 100%; height: 100%; background: #00000026; border-radius: 4px; }
+    Rectangle { x: 2px; y: 3px; width: 100%; height: 100%; background: #00000033; border-radius: 3px; }
+    Rectangle {
+        background: Theme.paper;
+        border-width: 1px;
+        border-color: Theme.base;
+        border-radius: 2px;
+        clip: true;
+        Image {
+            width: 100%;
+            height: 100%;
+            source: @image-url("../assets/ui/paper.png");
+            horizontal-tiling: repeat;
+            vertical-tiling: repeat;
+        }
+        Rectangle {
+            x: 6px;
+            y: 6px;
+            width: parent.width - 12px;
+            height: parent.height - 12px;
+            border-width: 1px;
+            border-color: Theme.paper-divider.with-alpha(0.5);
+        }
+    }
+    body := VerticalLayout { @children }
+}
+
+// A parchment card, like a shop item. Ink text only. A dashed inner rule, like the shop's tier
+// frames, is drawn from tiled dash textures (Slint has no dashed borders).
+export component ParchmentCard inherits Rectangle {
+    vertical-stretch: 0;
+    preferred-height: body.preferred-height;
+    min-height: body.min-height;
+    max-height: body.preferred-height;
+    Rectangle { x: 2px; y: 3px; width: 100%; height: 100%; background: #00000040; border-radius: 3px; }
+    Rectangle {
+        background: Theme.parchment;
+        border-width: 1px;
+        border-color: Theme.ink;
+        border-radius: 3px;
+        clip: true;
+        Image {
+            width: 100%;
+            height: 100%;
+            source: @image-url("../assets/ui/parchment.png");
+            horizontal-tiling: repeat;
+            vertical-tiling: repeat;
+        }
+        Image { x: 5px; y: 5px; width: parent.width - 10px; height: 1px; source: @image-url("../assets/ui/dash-h.png"); horizontal-tiling: repeat; }
+        Image { x: 5px; y: parent.height - 6px; width: parent.width - 10px; height: 1px; source: @image-url("../assets/ui/dash-h.png"); horizontal-tiling: repeat; }
+        Image { x: 5px; y: 5px; width: 1px; height: parent.height - 10px; source: @image-url("../assets/ui/dash-v.png"); vertical-tiling: repeat; }
+        Image { x: parent.width - 6px; y: 5px; width: 1px; height: parent.height - 10px; source: @image-url("../assets/ui/dash-v.png"); vertical-tiling: repeat; }
+    }
+    body := VerticalLayout { @children }
+}
+
+export component Divider inherits Rectangle {
+    height: 1px;
+    background: Theme.paper-divider;
+}
+
+// Page title: display font, mint, with a mint brush stroke under it (DEC-068: no per-page colours).
+export component PageTitle inherits VerticalLayout {
+    in property <string> text;
+    spacing: 0.1rem;
+    DText {
+        text: Tr.upper(root.text);
+        color: Theme.mint;
+        font-size: 3.25rem;
+        overflow: elide;
+    }
+    HorizontalLayout {
+        alignment: start;
+        Image {
+            width: 9rem;
+            height: 0.8rem;
+            source: @image-url("../assets/ui/brush.png");
+            image-fit: fill;
+            colorize: Theme.mint;
+        }
+    }
+}
+
+// Section heading inside a panel (DEC-074): display font in cream with a short hand-drawn rule
+// beneath, like the game's settings headings. No accent bar. Every heading has the same height.
+export component SectionHead inherits Rectangle {
+    in property <string> text;
+    height: 2.7rem;
+    VerticalLayout {
+        spacing: 0.15rem;
+        DText {
+            text: Tr.upper(root.text);
+            font-size: 1.75rem;
+            vertical-alignment: center;
+            overflow: elide;
+            height: 2.1rem;
+        }
+        HorizontalLayout {
+            alignment: start;
+            Path {
+                width: 7rem;
+                height: 0.4rem;
+                viewbox-width: 112;
+                viewbox-height: 6;
+                stroke: Theme.paper-divider;
+                stroke-width: 2px;
+                fill: transparent;
+                stroke-line-cap: round;
+                commands: "M 2 3.2 C 18 1.2 34 5 54 3 S 92 1.8 110 3.6 M 16 5.2 C 36 4.4 58 5.4 84 4.6";
+            }
+        }
+    }
 }
 
 // Icon plus text, so state is never carried by colour alone.
@@ -30,66 +195,397 @@ export component IconText inherits HorizontalLayout {
     in property <IconKind> kind;
     in property <string> text;
     in property <color> tint: Theme.text;
+    in property <color> text-color: Theme.text;
     spacing: 0.5rem;
     alignment: start;
     Icon { kind: root.kind; tint: root.tint; y: 0; }
-    BText { text: root.text; vertical-alignment: center; }
+    BText { text: root.text; color: root.text-color; vertical-alignment: center; }
 }
 
-export component Btn inherits Rectangle {
-    in property <string> label;
-    in property <bool> selected: false;
-    callback clicked();
-    preferred-width: lbl.preferred-width + 1.5rem;
-    min-width: self.preferred-width;
-    preferred-height: 2.25rem;
-    min-height: 2.25rem;
-    max-height: 2.25rem;
+// Keycap-style chip for ranks, hotkeys and small values.
+export component Chip inherits Rectangle {
+    in property <string> text;
+    in property <IconKind> kind: IconKind.info;
+    in property <bool> has-icon: false;
     horizontal-stretch: 0;
     vertical-stretch: 0;
-    background: root.selected || area.has-hover || fs.has-focus ? Theme.raised : Theme.panel;
-    border-width: fs.has-focus ? 2px : 1px;
+    background: Theme.keycap;
+    border-radius: 0.25rem;
+    border-width: 1px;
     border-color: Theme.text;
-    accessible-role: button;
-    accessible-label: root.label;
-    accessible-action-default => { root.clicked(); }
-    animate background { duration: Theme.motion; }
-
-    fs := FocusScope {
-        key-pressed(e) => {
-            if (e.text == Key.Return || e.text == " ") {
-                root.clicked();
-                return accept;
-            }
-            reject
-        }
-        area := TouchArea {
-            clicked => {
-                fs.focus();
-                root.clicked();
-            }
-        }
-        lbl := HText {
-            text: root.label;
-            horizontal-alignment: center;
+    HorizontalLayout {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        padding-top: 0.15rem;
+        padding-bottom: 0.2rem;
+        spacing: 0.3rem;
+        if root.has-icon: Icon { kind: root.kind; tint: Theme.base; size: 0.9rem; y: 0.05rem; }
+        HText {
+            text: root.text;
+            color: Theme.base;
+            font-size: 0.8125rem;
+            font-weight: 700;
             vertical-alignment: center;
-            x: 0.75rem;
-            width: parent.width - 1.5rem;
-            height: parent.height;
             wrap: no-wrap;
         }
     }
 }
 
+// A rectangle turned by a small angle, drawn as a polygon because Rectangle can't rotate and
+// the software renderer ignores element rotation. Used for stamps.
+export component TiltedShape inherits Path {
+    in property <angle> tilt: -1.5deg;
+    in property <color> border: Theme.ink;
+    property <float> w: root.width / 1px;
+    property <float> h: root.height / 1px;
+    property <float> c: Math.cos(root.tilt);
+    property <float> s: Math.sin(root.tilt);
+    // Corners relative to the centre, turned, then moved back.
+    property <float> x0: root.w / 2 - (root.w / 2) * root.c + (root.h / 2) * root.s;
+    property <float> y0: root.h / 2 - (root.w / 2) * root.s - (root.h / 2) * root.c;
+    property <float> x1: root.w / 2 + (root.w / 2) * root.c + (root.h / 2) * root.s;
+    property <float> y1: root.h / 2 + (root.w / 2) * root.s - (root.h / 2) * root.c;
+    property <float> x2: root.w / 2 + (root.w / 2) * root.c - (root.h / 2) * root.s;
+    property <float> y2: root.h / 2 + (root.w / 2) * root.s + (root.h / 2) * root.c;
+    property <float> x3: root.w / 2 - (root.w / 2) * root.c - (root.h / 2) * root.s;
+    property <float> y3: root.h / 2 - (root.w / 2) * root.s + (root.h / 2) * root.c;
+    viewbox-width: root.w;
+    viewbox-height: root.h;
+    stroke: root.border;
+    stroke-width: 1.5px;
+    stroke-line-join: round;
+    commands: "M " + root.x0 + " " + root.y0 + " L " + root.x1 + " " + root.y1 + " L " + root.x2 + " " + root.y2 + " L " + root.x3 + " " + root.y3 + " Z";
+}
+
+// Stamp, like a shop price tag: parchment and ink by default, tilted 1 to 2 degrees. The fill and
+// text colour can change for tags and check results. For counts, section numbers and results.
+export component Stamp inherits Rectangle {
+    in property <string> text;
+    in property <IconKind> kind: IconKind.info;
+    in property <bool> has-icon: false;
+    in property <angle> tilt: -1.5deg;
+    in property <color> fill: Theme.parchment;
+    in property <color> fg: Theme.ink;
+    in property <color> edge: Theme.ink;
+    in property <length> font-size: 1.125rem;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    TiltedShape { width: 100%; height: 100%; tilt: root.tilt; fill: root.fill; border: root.edge; }
+    HorizontalLayout {
+        padding-left: 0.6rem;
+        padding-right: 0.6rem;
+        padding-top: 0.2rem;
+        padding-bottom: 0.2rem;
+        spacing: 0.35rem;
+        if root.has-icon: Icon { kind: root.kind; tint: root.fg; size: root.font-size * 0.9; y: (parent.height - self.height) / 2; }
+        DText {
+            text: Tr.upper(root.text);
+            color: root.fg;
+            font-size: root.font-size;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// A check result as a rotated stamp (DEC-074): PASS on mint, FAIL on red, PENDING on parchment,
+// each with its icon, turned 2 degrees.
+export component CheckStamp inherits Stamp {
+    in property <Check> state;
+    has-icon: true;
+    kind: root.state == Check.pass ? IconKind.pass : root.state == Check.fail ? IconKind.fail : IconKind.pending;
+    text: root.state == Check.pass ? Tr.t("check-pass") : root.state == Check.fail ? Tr.t("check-fail") : Tr.t("check-pending");
+    fill: root.state == Check.pass ? Theme.mint : root.state == Check.fail ? Theme.danger : Theme.parchment;
+    fg: root.state == Check.pass ? Theme.mint-ink : root.state == Check.fail ? Theme.text : Theme.ink;
+    edge: root.state == Check.pass ? Theme.mint-ink : root.state == Check.fail ? Theme.text : Theme.ink;
+    tilt: root.state == Check.fail ? 2deg : -2deg;
+    font-size: 1.35rem;
+}
+
+// Win, Loss, Abandoned or No result. Icon and words, never colour alone. Abandoned and unknown
+// results are never a loss.
+export component OutcomeStamp inherits Stamp {
+    in property <MatchOutcome> outcome;
+    has-icon: true;
+    kind: root.outcome == MatchOutcome.win ? IconKind.pass : root.outcome == MatchOutcome.loss ? IconKind.fail : root.outcome == MatchOutcome.abandoned ? IconKind.abandoned : IconKind.empty;
+    text: root.outcome == MatchOutcome.win ? Tr.t("outcome-win") : root.outcome == MatchOutcome.loss ? Tr.t("outcome-loss") : root.outcome == MatchOutcome.abandoned ? Tr.t("outcome-abandoned") : Tr.t("outcome-none");
+}
+
+// Keycap hint with a label, for the footer bar.
+export component KeyHint inherits HorizontalLayout {
+    in property <string> key;
+    in property <string> label;
+    spacing: 0.4rem;
+    alignment: start;
+    Chip { text: root.key; y: 0; }
+    DText { text: Tr.upper(root.label); font-size: 1.125rem; vertical-alignment: center; }
+}
+
+// A round hero portrait with a ring in the dark team fill (DEC-074). Real portraits load at
+// runtime (doc 13); until then the first letter of the hero name stands in.
+export component Portrait inherits Rectangle {
+    in property <string> initial;
+    in property <image> image;
+    in property <bool> has-image: false;
+    in property <length> size: 2.75rem;
+    in property <color> ring: Theme.text;
+    width: size;
+    height: size;
+    // A cream hairline outside the team ring.
+    background: Theme.text;
+    border-radius: size / 2;
+    Rectangle {
+        x: 1px;
+        y: 1px;
+        width: parent.width - 2px;
+        height: parent.height - 2px;
+        background: Theme.raised;
+        border-radius: self.width / 2;
+        border-width: 3px;
+        border-color: root.ring;
+        clip: true;
+        if !root.has-image: DText {
+            text: root.initial;
+            font-size: root.size * 0.55;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            width: 100%;
+            height: 100%;
+        }
+        if root.has-image: Image {
+            source: root.image;
+            width: 100%;
+            height: 100%;
+            image-fit: cover;
+        }
+    }
+}
+
+// A team banner (DEC-074): the dark team fill with light text, on a rough brush edge. The side is
+// also named in the text.
+export component TeamBanner inherits Rectangle {
+    in property <TeamSide> side;
+    in property <string> text;
+    preferred-height: row.preferred-height;
+    min-height: row.min-height;
+    max-height: row.preferred-height;
+    Image {
+        width: 100%;
+        height: 100%;
+        source: @image-url("../assets/ui/brush.png");
+        image-fit: fill;
+        colorize: root.side == TeamSide.amber ? Theme.amber-dark : Theme.sapphire-dark;
+    }
+    row := HorizontalLayout {
+        padding-top: 0.3rem;
+        padding-bottom: 0.35rem;
+        padding-left: 1.8rem;
+        padding-right: 1.8rem;
+        DText {
+            text: Tr.upper(root.text);
+            color: root.side == TeamSide.amber ? Theme.amber-light : Theme.sapphire-light;
+            font-size: 1.5rem;
+            overflow: elide;
+        }
+    }
+}
+
+// A small team badge: the dark team fill, light text, and the side's name in text.
+export component SideBadge inherits Rectangle {
+    in property <TeamSide> side;
+    in property <string> text;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    background: root.side == TeamSide.amber ? Theme.amber-dark : Theme.sapphire-dark;
+    border-radius: 0.2rem;
+    border-width: 1px;
+    border-color: root.side == TeamSide.amber ? Theme.amber-light : Theme.sapphire-light;
+    HorizontalLayout {
+        padding-left: 0.45rem;
+        padding-right: 0.45rem;
+        padding-top: 0.05rem;
+        padding-bottom: 0.1rem;
+        HText {
+            text: root.text;
+            color: root.side == TeamSide.amber ? Theme.amber-light : Theme.sapphire-light;
+            font-size: 0.75rem;
+            font-weight: 700;
+            wrap: no-wrap;
+        }
+    }
+}
+
+// The category glyph for an item. Not used when the item has no category.
+component CatGlyph inherits Icon {
+    in property <ItemCategory> category;
+    kind: root.category == ItemCategory.weapon ? IconKind.weapon : root.category == ItemCategory.vitality ? IconKind.vitality : IconKind.spirit;
+}
+
+// The art area of an item tile (DEC-074): the category's gradient, top to bottom, with the item's
+// own art (loaded at runtime) centred, or the category glyph when there is no art, and a small
+// glyph badge in the corner.
+component ArtArea inherits Rectangle {
+    in property <ItemChipUi> chip;
+    in property <bool> badge: true;
+    in property <length> glyph-size: 2.2rem;
+    in property <length> badge-size: 1.2rem;
+    property <color> high: root.chip.category == ItemCategory.weapon ? Theme.cat-weapon : root.chip.category == ItemCategory.vitality ? Theme.cat-vitality : root.chip.category == ItemCategory.spirit ? Theme.cat-spirit-high : Theme.keycap;
+    property <color> low: root.chip.category == ItemCategory.weapon ? Theme.cat-weapon-low : root.chip.category == ItemCategory.vitality ? Theme.cat-vitality-low : root.chip.category == ItemCategory.spirit ? Theme.cat-spirit-low : Theme.placeholder;
+    background: @linear-gradient(180deg, root.high 0%, root.low 100%);
+    clip: true;
+    if root.chip.has-icon: Image {
+        source: root.chip.icon;
+        width: parent.width * 0.78;
+        height: parent.height * 0.78;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        image-fit: contain;
+    }
+    if !root.chip.has-icon && root.chip.category != ItemCategory.none: CatGlyph {
+        category: root.chip.category;
+        size: root.glyph-size;
+        tint: root.chip.category == ItemCategory.spirit ? Theme.text : Theme.ink;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+    }
+    if root.badge && root.chip.category != ItemCategory.none: Rectangle {
+        x: 2px;
+        y: 2px;
+        width: root.badge-size;
+        height: root.badge-size;
+        background: Theme.ink;
+        border-radius: 2px;
+        CatGlyph {
+            category: root.chip.category;
+            size: parent.width * 0.78;
+            tint: Theme.parchment;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+        }
+    }
+}
+
+// An item as a shop card (DEC-074): gradient art area, a corner category badge, a parchment name
+// strip and an ink outline. 76 x 92 by default; `small` is the Live board's 52 x 64 with a
+// one-line name. The tile may shrink when the window is too narrow (text size 150% and up).
+// The item name is always text, and the category is in the accessible label.
+export component ItemTile inherits Rectangle {
+    in property <ItemChipUi> chip;
+    in property <bool> small: false;
+    property <length> strip: root.small ? 1.2rem : 2.1rem;
+    preferred-width: root.small ? 3.25rem : 4.75rem;
+    min-width: root.small ? 2.25rem : 3rem;
+    preferred-height: root.small ? 4rem : 5.75rem;
+    min-height: self.preferred-height;
+    max-height: self.preferred-height;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    background: Theme.parchment;
+    border-width: 1px;
+    border-color: Theme.ink;
+    clip: true;
+    accessible-role: text;
+    accessible-label: root.chip.name + ", " + root.chip.category-label;
+    ArtArea {
+        x: 1px;
+        y: 1px;
+        width: parent.width - 2px;
+        height: parent.height - root.strip - 2px;
+        chip: root.chip;
+        glyph-size: root.small ? 1.5rem : 2.3rem;
+        badge-size: root.small ? 0.95rem : 1.2rem;
+    }
+    Rectangle { x: 1px; y: parent.height - root.strip - 1px; width: parent.width - 2px; height: 1px; background: Theme.ink; }
+    Text {
+        x: 3px;
+        y: parent.height - root.strip;
+        width: parent.width - 6px;
+        height: root.strip - 1px;
+        text: root.chip.name;
+        color: Theme.ink;
+        font-family: Theme.heading-font;
+        font-size: root.small ? 0.625rem : 0.6875rem;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        wrap: root.small ? TextWrap.no-wrap : TextWrap.word-wrap;
+        overflow: elide;
+    }
+}
+
+// An item in the Purchase Log (DEC-074): a 28 px art square and the name as text.
+export component ItemLine inherits Rectangle {
+    in property <ItemChipUi> chip;
+    preferred-height: 1.75rem;
+    min-height: 1.75rem;
+    max-height: 1.75rem;
+    accessible-role: text;
+    accessible-label: root.chip.name + ", " + root.chip.category-label;
+    HorizontalLayout {
+        spacing: 0.6rem;
+        Rectangle {
+            width: 1.75rem;
+            height: 1.75rem;
+            border-width: 1px;
+            border-color: Theme.ink;
+            clip: true;
+            ArtArea {
+                x: 1px;
+                y: 1px;
+                width: parent.width - 2px;
+                height: parent.height - 2px;
+                chip: root.chip;
+                badge: false;
+                glyph-size: 1.1rem;
+            }
+        }
+        HText {
+            text: root.chip.name;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            vertical-alignment: center;
+            wrap: no-wrap;
+            overflow: elide;
+            horizontal-stretch: 1;
+            preferred-width: 1px;
+        }
+    }
+}
+
+// The count of a category in a build ("Weapon 5"): a small stamped tag in the category colour.
+// Ink text, except Spirit, which takes cream on the dark purple.
+export component CatTag inherits Stamp {
+    in property <ItemChipUi> chip;
+    text: root.chip.name;
+    has-icon: root.chip.category != ItemCategory.none;
+    kind: root.chip.category == ItemCategory.weapon ? IconKind.weapon : root.chip.category == ItemCategory.vitality ? IconKind.vitality : IconKind.spirit;
+    fill: root.chip.category == ItemCategory.weapon ? Theme.cat-weapon : root.chip.category == ItemCategory.vitality ? Theme.cat-vitality-low : root.chip.category == ItemCategory.spirit ? Theme.cat-spirit-low : Theme.keycap;
+    fg: root.chip.category == ItemCategory.spirit ? Theme.text : Theme.ink;
+    edge: Theme.ink;
+    font-size: 0.95rem;
+    accessible-role: text;
+    accessible-label: root.chip.name;
+}
+
+// A small square icon button: a dark slab, or the red stamp for a destructive action.
 export component IconBtn inherits Rectangle {
     in property <IconKind> kind;
     in property <string> label;
+    in property <bool> danger: false;
+    in property <length> size: 2.2rem;
     callback clicked();
-    width: 2rem;
-    height: 2rem;
-    background: area.has-hover || fs.has-focus ? Theme.raised : Theme.panel;
-    border-width: fs.has-focus ? 2px : 1px;
-    border-color: Theme.text;
+    preferred-width: root.size;
+    min-width: root.size;
+    max-width: root.size;
+    preferred-height: root.size;
+    min-height: root.size;
+    max-height: root.size;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    background: root.danger ? Theme.danger : area.has-hover || fs.has-focus ? Theme.raised : Theme.slab;
+    border-radius: 2px;
+    border-width: fs.has-focus ? 3px : 1px;
+    border-color: fs.has-focus ? Theme.mustard : root.danger ? Theme.text : Theme.paper-divider;
+    clip: true;
     accessible-role: button;
     accessible-label: root.label;
     accessible-action-default => { root.clicked(); }
@@ -110,36 +606,238 @@ export component IconBtn inherits Rectangle {
         }
         Icon {
             kind: root.kind;
-            size: 1rem;
+            tint: Theme.text;
+            size: root.size * 0.5;
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
         }
     }
 }
 
+// Item tiles in rows of `per-row` (Slint has no wrapping layout). Mode 0 only shows them; mode 1
+// adds move earlier, move later and remove under each tile (the Build maker's sections); mode 2
+// adds one Add button under each (the item search). Indexes are into `items`.
+export component TileGrid inherits VerticalLayout {
+    in property <[ItemChipUi]> items;
+    in property <int> per-row: 6;
+    in property <int> mode: 0;
+    in property <string> move-earlier-label;
+    in property <string> move-later-label;
+    in property <string> remove-label;
+    in property <string> add-label;
+    callback move(int, int);
+    callback remove(int);
+    callback add(int);
+    spacing: 0.4rem;
+    for r in Math.ceil(root.items.length / root.per-row): HorizontalLayout {
+        spacing: 0.4rem;
+        alignment: start;
+        for c in root.per-row: VerticalLayout {
+            spacing: 0.25rem;
+            alignment: start;
+            // Cells with controls keep a width the controls fit in.
+            min-width: root.mode == 0 ? 0px : 4.75rem;
+            if r * root.per-row + c < root.items.length: ItemTile {
+                chip: root.items[r * root.per-row + c];
+            }
+            if r * root.per-row + c < root.items.length && root.mode == 1: HorizontalLayout {
+                spacing: 2px;
+                alignment: start;
+                IconBtn { size: 1.5rem; kind: IconKind.left; label: root.move-earlier-label; clicked => { root.move(r * root.per-row + c, -1); } }
+                IconBtn { size: 1.5rem; kind: IconKind.right; label: root.move-later-label; clicked => { root.move(r * root.per-row + c, 1); } }
+                IconBtn { size: 1.5rem; kind: IconKind.remove; danger: true; label: root.remove-label; clicked => { root.remove(r * root.per-row + c); } }
+            }
+            if r * root.per-row + c < root.items.length && root.mode == 2: HorizontalLayout {
+                alignment: start;
+                IconBtn { size: 1.75rem; kind: IconKind.plus; label: root.add-label; clicked => { root.add(r * root.per-row + c); } }
+            }
+        }
+    }
+}
+
+// A row of small Live-board tiles (DEC-074): 52 x 64 with a one-line name. Rust splits the list
+// into rows (Slint has no wrapping layout).
+export component TileRow inherits HorizontalLayout {
+    in property <[ItemChipUi]> chips;
+    spacing: 0.3rem;
+    alignment: start;
+    for chip in root.chips: ItemTile {
+        chip: chip;
+        small: true;
+    }
+}
+
+// A friends-list style row: teal, a faint halftone, and a 4 px team bar (side also shown as text).
+// It sizes to its content (see the note on panels above).
+export component PlayerRow inherits Rectangle {
+    in property <color> bar: Theme.text;
+    vertical-stretch: 0;
+    preferred-height: body.preferred-height;
+    min-height: body.min-height;
+    max-height: body.preferred-height;
+    background: Theme.panel;
+    // No cream stroke: a dark edge and a lower lip, like the button slabs.
+    border-width: 1px;
+    border-color: Theme.base;
+    clip: true;
+    Image {
+        width: 100%;
+        height: 100%;
+        source: @image-url("../assets/ui/halftone.png");
+        horizontal-tiling: repeat;
+        vertical-tiling: repeat;
+    }
+    Rectangle { y: parent.height - 4px; height: 3px; x: 1px; width: parent.width - 2px; background: #00000038; }
+    Rectangle { x: 0; width: 4px; height: 100%; background: root.bar; }
+    body := VerticalLayout {
+        padding-left: 4px;
+        @children
+    }
+}
+
+// Buttons are display-font slabs (DEC-074). Secondary (the default) is a dark slab with a thin
+// edge. Primary, and a selected button, is a mint slab with a rough brush edge; a selected one also
+// carries a check, so selection is not colour alone.
+export component Btn inherits Rectangle {
+    in property <string> label;
+    in property <bool> selected: false;
+    in property <bool> primary: false;
+    callback clicked();
+    property <bool> mint: root.primary || root.selected;
+    preferred-width: row.preferred-width;
+    min-width: self.preferred-width;
+    preferred-height: 2.5rem;
+    min-height: 2.5rem;
+    max-height: 2.5rem;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    background: root.mint ? transparent : area.has-hover || fs.has-focus ? Theme.raised : Theme.slab;
+    border-radius: 2px;
+    border-width: fs.has-focus ? 3px : root.mint ? 0px : 1px;
+    border-color: fs.has-focus ? Theme.mustard : Theme.paper-divider;
+    clip: true;
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-checked: root.selected;
+    accessible-action-default => { root.clicked(); }
+    animate background { duration: Theme.motion; }
+
+    if root.mint: Image {
+        width: 100%;
+        height: 100%;
+        source: @image-url("../assets/ui/brush.png");
+        image-fit: fill;
+    }
+    // The slab's lower lip.
+    if !root.mint: Rectangle { y: parent.height - 3px; height: 3px; width: 100%; background: #00000038; }
+    // Hover on a mint slab: an underline.
+    if root.mint && area.has-hover: Rectangle { x: 1.2rem; y: parent.height - 0.5rem; width: parent.width - 2.4rem; height: 2px; background: Theme.mint-ink; }
+    fs := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Return || e.text == " ") {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+        area := TouchArea {
+            clicked => {
+                fs.focus();
+                root.clicked();
+            }
+        }
+        row := HorizontalLayout {
+            padding-left: 1.3rem;
+            padding-right: 1.3rem;
+            spacing: 0.4rem;
+            alignment: center;
+            if root.selected: Icon { kind: IconKind.pass; tint: Theme.mint-ink; size: 1rem; y: (parent.height - self.height) / 2; }
+            DText {
+                text: Tr.upper(root.label);
+                color: root.mint ? Theme.mint-ink : Theme.text;
+                font-size: 1.3rem;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+// A red "stamp" for destructive actions. Bold and at least 14 pt, as cream on red is 4.50:1.
+export component DangerBtn inherits Rectangle {
+    in property <string> label;
+    callback clicked();
+    preferred-width: lbl.preferred-width + 2rem;
+    min-width: self.preferred-width;
+    preferred-height: 2.6rem;
+    min-height: 2.6rem;
+    max-height: 2.6rem;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    TiltedShape { width: 100%; height: 100%; tilt: -1.5deg; fill: Theme.danger; border: fs.has-focus ? Theme.mustard : Theme.text; }
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => { root.clicked(); }
+    fs := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Return || e.text == " ") {
+                root.clicked();
+                return accept;
+            }
+            reject
+        }
+        area := TouchArea {
+            clicked => {
+                fs.focus();
+                root.clicked();
+            }
+        }
+        lbl := DText {
+            text: Tr.upper(root.label);
+            font-size: 1.4rem;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            x: 1rem;
+            width: parent.width - 2rem;
+            height: parent.height;
+        }
+    }
+}
+
+
+
+// A dark inset (DEC-074): `edge` fill, an inner shadow along the top and left, cream text and a
+// placeholder in `placeholder`.
 export component TextBox inherits Rectangle {
     in-out property <string> text <=> input.text;
     in property <string> placeholder;
     in property <string> label;
     callback accepted(string);
     callback edited(string);
-    min-height: 2rem;
-    background: Theme.base;
-    border-width: input.has-focus ? 2px : 1px;
-    border-color: Theme.text;
+    min-height: 2.2rem;
+    // A fixed height, so the layout never grows it to fill spare room.
+    preferred-height: 2.4rem;
+    max-height: 2.4rem;
+    background: Theme.edge;
+    border-radius: 2px;
+    border-width: input.has-focus ? 3px : 1px;
+    border-color: input.has-focus ? Theme.mustard : Theme.paper-divider;
+    clip: true;
     forward-focus: input;
     accessible-role: text-input;
     accessible-label: root.label;
 
+    Rectangle { y: 0; height: 7px; background: @linear-gradient(180deg, #000000b3 0%, #00000000 100%); }
+    Rectangle { x: 0; width: 5px; background: @linear-gradient(90deg, #00000080 0%, #00000000 100%); }
     if input.text == "": Text {
         x: 0.6rem;
         width: parent.width - 1.2rem;
         text: root.placeholder;
-        color: Theme.secondary;
+        color: Theme.placeholder;
         font-family: Theme.body-font;
         font-size: 0.875rem;
         vertical-alignment: center;
         height: parent.height;
+        overflow: elide;
     }
     input := TextInput {
         x: 0.6rem;
@@ -155,6 +853,27 @@ export component TextBox inherits Rectangle {
         accepted => { root.accepted(self.text); }
         edited => { root.edited(self.text); }
     }
+}
+
+// A labelled row in a paper panel: label and hint on the left, the control on the right,
+// and a thin divider below.
+export component FormRow inherits VerticalLayout {
+    in property <string> label;
+    in property <string> hint;
+    in property <bool> divider: true;
+    spacing: 0.6rem;
+    HorizontalLayout {
+        spacing: 1rem;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            preferred-width: 1px;
+            alignment: center;
+            HText { text: root.label; font-weight: 600; }
+            if root.hint != "": BText { text: root.hint; color: Theme.paper-muted; font-size: 0.8125rem; }
+        }
+        @children
+    }
+    if root.divider: Divider { }
 }
 
 // Fade-in on view change. Duration is 0 when reduce-motion is on.
@@ -175,34 +894,124 @@ export component StateBar inherits VerticalLayout {
 
     if root.state.kind == DataKind.loading: Panel {
         VerticalLayout {
-            padding: 0.75rem;
+            padding: 0.9rem;
             spacing: 0.5rem;
             IconText { kind: IconKind.loading; text: Tr.t("state-loading"); }
             // A placeholder per field
-            Rectangle { height: 0.8rem; background: Theme.raised; }
-            Rectangle { height: 0.8rem; width: 70%; background: Theme.raised; }
-            Rectangle { height: 0.8rem; width: 45%; background: Theme.raised; }
+            Rectangle { height: 0.8rem; background: Theme.raised; border-radius: 0.2rem; }
+            Rectangle { height: 0.8rem; width: 70%; background: Theme.raised; border-radius: 0.2rem; }
+            Rectangle { height: 0.8rem; width: 45%; background: Theme.raised; border-radius: 0.2rem; }
         }
     }
     if root.state.kind == DataKind.empty: Panel {
         VerticalLayout {
-            padding: 0.75rem;
+            padding: 0.9rem;
             IconText { kind: IconKind.empty; text: root.empty-text; }
         }
     }
     if root.state.kind == DataKind.stale: Panel {
         VerticalLayout {
-            padding: 0.5rem;
+            padding: 0.7rem;
             IconText { kind: IconKind.stale; text: root.state.message; }
         }
     }
     if root.state.kind == DataKind.error: Panel {
         border-color: Theme.warn;
+        border-width: 2px;
         HorizontalLayout {
-            padding: 0.75rem;
+            padding: 0.9rem;
             spacing: 0.75rem;
             IconText { kind: IconKind.error; tint: Theme.warn; text: root.state.message; horizontal-stretch: 1; }
-            Btn { label: Tr.t("state-retry"); clicked => { root.retry(); } }
+            Btn { primary: true; label: Tr.t("state-retry"); clicked => { root.retry(); } }
         }
+    }
+}
+
+// A labelled check box in the app's own look: a dark inset square that fills mint and shows a check
+// when on, so the state is a shape and not only a colour.
+export component CheckRow inherits Rectangle {
+    in-out property <bool> checked;
+    in property <string> label;
+    callback toggled(bool);
+    preferred-height: 2.2rem;
+    min-height: 2.2rem;
+    max-height: 2.2rem;
+    accessible-role: checkbox;
+    accessible-label: root.label;
+    accessible-checked: root.checked;
+    accessible-action-default => { root.checked = !root.checked; root.toggled(root.checked); }
+    fs := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Return || e.text == " ") {
+                root.checked = !root.checked;
+                root.toggled(root.checked);
+                return accept;
+            }
+            reject
+        }
+        area := TouchArea {
+            clicked => {
+                fs.focus();
+                root.checked = !root.checked;
+                root.toggled(root.checked);
+            }
+        }
+        HorizontalLayout {
+            spacing: 0.7rem;
+            alignment: start;
+            Rectangle {
+                width: 1.5rem;
+                height: 1.5rem;
+                y: (parent.height - self.height) / 2;
+                background: root.checked ? Theme.mint : Theme.edge;
+                border-radius: 2px;
+                border-width: fs.has-focus ? 3px : 1px;
+                border-color: fs.has-focus ? Theme.mustard : root.checked ? Theme.mint-ink : Theme.paper-divider;
+                if root.checked: Icon {
+                    kind: IconKind.pass;
+                    tint: Theme.mint-ink;
+                    size: 1.1rem;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+            BText { text: root.label; vertical-alignment: center; wrap: no-wrap; }
+        }
+    }
+}
+
+// "Mark a problem" (FR-SET-005): a button that opens a one-line note. The note and its time go to
+// the local diagnostics only.
+export component MarkProblem inherits VerticalLayout {
+    property <bool> open: false;
+    spacing: 0.5rem;
+    if !root.open: HorizontalLayout {
+        spacing: 0.75rem;
+        alignment: start;
+        Btn { label: Tr.t("mark-button"); clicked => { root.open = true; } }
+        if AppState.mark-confirm != "": IconText { kind: IconKind.pass; text: AppState.mark-confirm; }
+    }
+    if root.open: HorizontalLayout {
+        spacing: 0.5rem;
+        note := TextBox {
+            placeholder: Tr.t("mark-placeholder");
+            label: Tr.t("mark-button");
+            horizontal-stretch: 1;
+            accepted(t) => {
+                AppState.mark-problem(t);
+                self.text = "";
+                root.open = false;
+            }
+        }
+        Btn {
+            primary: true;
+            label: Tr.t("mark-save");
+            clicked => {
+                AppState.mark-problem(note.text);
+                note.text = "";
+                root.open = false;
+            }
+        }
+        Btn { label: Tr.t("mark-cancel"); clicked => { note.text = ""; root.open = false; } }
     }
 }

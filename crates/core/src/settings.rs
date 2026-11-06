@@ -58,9 +58,26 @@ pub struct Rules {
     pub build_check: BuildCheckRules,
     pub pace: PaceRules,
     pub review: ReviewRules,
+    pub ui: UiRules,
+    pub builds: BuildsRules,
+    pub diagnostics: DiagnosticsRules,
     pub overlay: OverlayRules,
     pub retention: RetentionRules,
     pub updates: UpdateRules,
+}
+
+/// `[diagnostics]`: the Alpha diagnostics file (FR-SET-005, DEC-070).
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DiagnosticsRules {
+    /// Collecting is on at first run in Alpha builds.
+    pub enabled_default: bool,
+    /// Days of diagnostics kept on disk.
+    pub keep_days: u32,
+    /// Seconds between CPU and memory samples during Live.
+    pub perf_sample_s: u32,
+    /// Size cap of the saved zip, in megabytes.
+    pub max_file_mb: u32,
 }
 
 /// Regexes for the `console.log` lines (OQ-03, T-006). An empty string means "not configured".
@@ -110,6 +127,10 @@ pub struct ScoutingRules {
     pub swap_closed_after_s: u32,
     pub history_window: u32,
     pub mmr_window: u32,
+    /// Fewer ranked matches in the window shows "not enough data" (DEC-061).
+    pub mmr_trend_min_points: u32,
+    /// Heroes listed as mains on the scouting card (FR-SCOUT-003, DEC-065).
+    pub mains_shown: u32,
     pub build_sample_matches: u32,
     pub low_sample_below: u32,
     pub core_rate: f64,
@@ -216,6 +237,21 @@ pub struct ReviewRules {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+pub struct UiRules {
+    pub flush_ms: u32,
+    pub item_search_results: u32,
+    pub secret_timeout_s: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct BuildsRules {
+    pub community_limit: u32,
+    pub community_sort: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct OverlayRules {
     pub max_redraw_hz: u32,
 }
@@ -289,6 +325,18 @@ pub struct Settings {
     pub account: AccountSettings,
     pub steam: SteamSettings,
     pub llm: LlmSettings,
+    /// FR-SET-005, DEC-070. Absent in older files.
+    #[serde(default)]
+    pub diagnostics: DiagnosticsSettings,
+}
+
+/// "Save diagnostics while I play" (FR-SET-005, DEC-070).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DiagnosticsSettings {
+    /// `None` means "use `rules.diagnostics.enabled_default`". Only an explicit choice is saved.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
 }
 
 fn merge(base: &mut toml::Value, over: toml::Value) {
@@ -334,6 +382,13 @@ fn parse_value(text: &str, origin: &Path) -> Result<toml::Value> {
 }
 
 impl Settings {
+    /// Whether diagnostics are on: the user's choice, else `rules.diagnostics.enabled_default`.
+    pub fn diagnostics_enabled(&self, rules: &Rules) -> bool {
+        self.diagnostics
+            .enabled
+            .unwrap_or(rules.diagnostics.enabled_default)
+    }
+
     /// Defaults from `defaults_path`, with the user's `user_path` (if it exists) merged over them.
     pub fn load_from(defaults_path: &Path, user_path: &Path) -> Result<Self> {
         let mut merged = parse_value(&read(defaults_path)?, defaults_path)?;
@@ -671,6 +726,37 @@ mod tests {
     }
 
     #[test]
+    fn diagnostics_setting_defaults_to_rules_and_round_trips() {
+        let tmp = tempfile::tempdir().unwrap();
+        let paths = paths_in(tmp.path());
+        let rules = Rules::load(&paths.rules_path()).unwrap();
+        let mut s =
+            Settings::load_from(&paths.defaults_path(), &paths.user_settings_path()).unwrap();
+        assert_eq!(s.diagnostics.enabled, None);
+        assert_eq!(
+            s.diagnostics_enabled(&rules),
+            rules.diagnostics.enabled_default
+        );
+        // An existing settings.toml without [diagnostics] still loads (above). Save an explicit off.
+        s.diagnostics.enabled = Some(!rules.diagnostics.enabled_default);
+        s.save(&paths.defaults_path(), &paths.config_dir).unwrap();
+        let text = std::fs::read_to_string(paths.user_settings_path()).unwrap();
+        assert!(text.contains("[diagnostics]"), "{text}");
+        let back =
+            Settings::load_from(&paths.defaults_path(), &paths.user_settings_path()).unwrap();
+        assert_eq!(
+            back.diagnostics_enabled(&rules),
+            !rules.diagnostics.enabled_default
+        );
+        // Back to None writes nothing for it.
+        let mut s2 = back;
+        s2.diagnostics.enabled = None;
+        s2.save(&paths.defaults_path(), &paths.config_dir).unwrap();
+        let text = std::fs::read_to_string(paths.user_settings_path()).unwrap();
+        assert!(!text.contains("diagnostics"), "{text}");
+    }
+
+    #[test]
     fn shipped_rules_parse_with_every_key() {
         let r = Rules::load(&repo_config().join(RULES_FILE)).unwrap();
         assert_eq!(r.scouting.history_window, 20);
@@ -679,7 +765,33 @@ mod tests {
         assert_eq!(r.review.t7_even, [0.40, 0.60]);
         assert_eq!(r.review.obj_weights.base, 3);
         assert!(r.updates.check_on_start);
-        assert!(r.match_watcher.start.is_empty(), "patterns wait on T-006");
+        assert_eq!(r.scouting.mmr_trend_min_points, 2);
+        assert_eq!(r.scouting.mains_shown, 5);
+        assert_eq!(r.ui.flush_ms, 500);
+        assert_eq!(r.ui.item_search_results, 8);
+        assert_eq!(r.ui.secret_timeout_s, 3);
+        assert_eq!(r.builds.community_limit, 10);
+        assert_eq!(r.builds.community_sort, "favorites");
+        assert!(r.diagnostics.enabled_default);
+        assert_eq!(r.diagnostics.keep_days, 14);
+        assert_eq!(r.diagnostics.perf_sample_s, 10);
+        assert_eq!(r.diagnostics.max_file_mb, 20);
+        let w = &r.match_watcher;
+        for (name, src) in [
+            ("start", &w.start),
+            ("end", &w.end),
+            ("match_id", &w.match_id),
+            ("exit", &w.exit),
+        ] {
+            assert!(!src.is_empty(), "{name} is configured");
+            regex::Regex::new(src).unwrap_or_else(|e| panic!("{name} does not compile: {e}"));
+        }
+        let id = regex::Regex::new(&w.match_id).unwrap();
+        assert_eq!(
+            id.captures_len(),
+            2,
+            "match_id has exactly one capture group"
+        );
     }
 
     #[test]

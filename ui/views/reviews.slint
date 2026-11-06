@@ -1,21 +1,26 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { Icon, IconKind } from "../icons.slint";
-import { AppState, Tr, DataKind, SoulKind } from "../types.slint";
-import { HText, BText, Panel, ViewFrame, StateBar, IconText } from "../widgets.slint";
+import { AppState, Tr, DataKind, SoulKind, MatchOutcome } from "../types.slint";
+import { HText, BText, DText, PageTitle, Panel, PaperPanel, SectionHead, Divider, PlayerRow, OutcomeStamp, Stamp, Btn, ViewFrame, StateBar, IconText } from "../widgets.slint";
 
-component ReviewRow inherits Rectangle {
+component ReviewRow inherits PlayerRow {
     in property <string> title;
     in property <string> meta;
-    in property <bool> won;
+    in property <MatchOutcome> outcome;
+    in property <bool> pending;
     in property <bool> selected;
     callback clicked();
     background: root.selected || area.has-hover || fs.has-focus ? Theme.raised : Theme.panel;
-    border-width: fs.has-focus ? 2px : 1px;
-    border-color: Theme.text;
-    min-height: 3.2rem;
+    // A bar marks the selected row, so selection is not colour alone.
+    bar: root.selected ? Theme.mint : transparent;
+    min-height: 4rem;
+    // Keyboard focus: the mustard ring (the background change alone is colour only).
+    border-width: fs.has-focus ? 3px : 1px;
+    border-color: fs.has-focus ? Theme.mustard : Theme.base;
     accessible-role: button;
     accessible-label: root.title + ", " + root.meta;
+    accessible-checked: root.selected;
     accessible-action-default => { root.clicked(); }
     fs := FocusScope {
         key-pressed(e) => {
@@ -32,12 +37,31 @@ component ReviewRow inherits Rectangle {
             }
         }
         HorizontalLayout {
-            padding: 0.5rem;
-            spacing: 0.5rem;
-            Icon { kind: root.won ? IconKind.pass : IconKind.fail; y: 0.15rem; }
+            padding: 0.6rem;
+            padding-left: 0.8rem;
+            spacing: 0.75rem;
+            // Round badge: win, loss, no result or pending, by icon shape.
+            Rectangle {
+                width: 2.6rem;
+                height: 2.6rem;
+                y: 0;
+                background: Theme.base;
+                border-radius: 1.3rem;
+                border-width: 2px;
+                border-color: Theme.text;
+                Icon {
+                    kind: root.pending ? IconKind.pending : root.outcome == MatchOutcome.win ? IconKind.pass : root.outcome == MatchOutcome.loss ? IconKind.fail : root.outcome == MatchOutcome.abandoned ? IconKind.abandoned : IconKind.empty;
+                    size: 1.3rem;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
             VerticalLayout {
-                HText { text: root.title; wrap: no-wrap; overflow: elide; }
-                BText { text: root.meta; font-size: 0.8125rem; }
+                alignment: center;
+                horizontal-stretch: 1;
+                preferred-width: 1px;
+                HText { text: root.title; font-weight: 600; wrap: no-wrap; overflow: elide; }
+                BText { text: root.meta; font-size: 0.8125rem; wrap: no-wrap; overflow: elide; color: Theme.paper-muted; }
             }
         }
     }
@@ -46,9 +70,10 @@ component ReviewRow inherits Rectangle {
 export component ReviewsView inherits ViewFrame {
     property <bool> content-visible: AppState.reviews-state.kind == DataKind.loaded || AppState.reviews-state.kind == DataKind.stale;
     VerticalLayout {
-        padding: 1rem;
-        spacing: 0.75rem;
-        HText { text: Tr.t("reviews-title"); font-size: 1.5rem; }
+        padding: 1.5rem;
+        padding-top: 1rem;
+        spacing: 1rem;
+        PageTitle { text: Tr.t("reviews-title"); }
         StateBar {
             state: AppState.reviews-state;
             empty-text: Tr.t("reviews-empty");
@@ -57,14 +82,20 @@ export component ReviewsView inherits ViewFrame {
         if root.content-visible: HorizontalLayout {
             spacing: 1rem;
             ScrollView {
-                width: 17rem;
+                width: 18rem;
                 VerticalLayout {
                     spacing: 0.4rem;
                     alignment: start;
+                    HorizontalLayout {
+                        alignment: start;
+                        padding-bottom: 0.3rem;
+                        Stamp { text: AppState.review-count-text; has-icon: true; kind: IconKind.info; }
+                    }
                     for r[i] in AppState.review-rows: ReviewRow {
                         title: r.title;
                         meta: r.meta;
-                        won: r.won;
+                        outcome: r.outcome;
+                        pending: r.pending;
                         selected: AppState.selected-review == i;
                         clicked => {
                             AppState.selected-review = i;
@@ -78,55 +109,77 @@ export component ReviewsView inherits ViewFrame {
                 VerticalLayout {
                     alignment: start;
                     spacing: 0.75rem;
-                    if !AppState.report.has-report: Panel {
+                    if AppState.selected-pending: PaperPanel {
                         VerticalLayout {
-                            padding: 1rem;
+                            padding: 1.25rem;
+                            spacing: 0.75rem;
+                            IconText { kind: IconKind.pending; text: Tr.t("review-pending-body"); }
+                            HorizontalLayout {
+                                alignment: start;
+                                Btn { primary: true; label: Tr.t("review-retry"); clicked => { AppState.retry-review(AppState.selected-review); } }
+                            }
+                        }
+                    }
+                    if !AppState.report.has-report && !AppState.selected-pending: PaperPanel {
+                        VerticalLayout {
+                            padding: 1.25rem;
                             IconText { kind: IconKind.info; text: Tr.t("reviews-pick"); }
                         }
                     }
                     if AppState.report.has-report: VerticalLayout {
-                        spacing: 0.75rem;
-                        Panel {
+                        spacing: 1rem;
+                        PaperPanel {
                             VerticalLayout {
-                                padding: 1rem;
-                                spacing: 0.5rem;
+                                padding: 1.25rem;
+                                spacing: 0.6rem;
                                 HorizontalLayout {
-                                    spacing: 0.6rem;
-                                    Icon { kind: AppState.report.won ? IconKind.pass : IconKind.fail; size: 1.5rem; y: 0; }
-                                    HText { text: AppState.report.headline; font-size: 1.375rem; }
+                                    spacing: 1rem;
+                                    DText {
+                                        text: Tr.upper(AppState.report.headline);
+                                        font-size: 2.4rem;
+                                        wrap: word-wrap;
+                                        horizontal-stretch: 1;
+                                        preferred-width: 1px;
+                                    }
+                                    OutcomeStamp { outcome: AppState.report.outcome; y: 0.4rem; }
                                 }
-                                BText { text: AppState.report.duration; }
+                                BText { text: AppState.report.duration; color: Theme.paper-muted; }
                                 BText { text: AppState.report.summary-line; }
                             }
                         }
-                        Panel {
+                        PaperPanel {
                             VerticalLayout {
-                                padding: 1rem;
-                                spacing: 0.4rem;
-                                HText { text: AppState.report.lane-title; font-size: 1.125rem; }
-                                HText { text: AppState.report.lane-lead; font-size: 1.25rem; }
+                                padding: 1.25rem;
+                                spacing: 0.5rem;
+                                SectionHead { text: AppState.report.lane-title; }
+                                DText { text: Tr.upper(AppState.report.lane-lead); font-size: 2rem; wrap: word-wrap; }
                                 BText { text: AppState.report.lane-line; }
                             }
                         }
-                        Panel {
+                        PaperPanel {
                             VerticalLayout {
-                                padding: 1rem;
-                                spacing: 0.4rem;
-                                HText { text: Tr.t("report-souls-title"); font-size: 1.125rem; }
-                                for s in AppState.report.sources: HorizontalLayout {
-                                    spacing: 0.6rem;
-                                    Icon {
-                                        kind: s.kind == SoulKind.lane-troopers ? IconKind.lane-troopers : s.kind == SoulKind.neutral-camps ? IconKind.neutral-camps : s.kind == SoulKind.breakables ? IconKind.breakables : s.kind == SoulKind.urn ? IconKind.urn : IconKind.sinners-sacrifice;
-                                        y: 0;
+                                padding: 1.25rem;
+                                spacing: 0.6rem;
+                                SectionHead { text: Tr.t("report-souls-title"); }
+                                for s in AppState.report.sources: VerticalLayout {
+                                    spacing: 0.5rem;
+                                    HorizontalLayout {
+                                        spacing: 0.6rem;
+                                        Icon {
+                                            kind: s.kind == SoulKind.lane-troopers ? IconKind.lane-troopers : s.kind == SoulKind.neutral-camps ? IconKind.neutral-camps : s.kind == SoulKind.breakables ? IconKind.breakables : s.kind == SoulKind.urn ? IconKind.urn : s.kind == SoulKind.other ? IconKind.info : IconKind.sinners-sacrifice;
+                                            y: 0;
+                                        }
+                                        BText { text: s.label; horizontal-stretch: 1; preferred-width: 1px; }
+                                        Icon { kind: IconKind.soul; size: 1rem; y: (parent.height - self.height) / 2; }
+                                        HText { text: s.souls; font-weight: 700; horizontal-alignment: right; }
                                     }
-                                    BText { text: s.label; horizontal-stretch: 1; }
-                                    HText { text: s.souls; horizontal-alignment: right; }
+                                    Divider { }
                                 }
                             }
                         }
-                        Panel {
+                        PaperPanel {
                             VerticalLayout {
-                                padding: 0.75rem;
+                                padding: 1rem;
                                 IconText { kind: IconKind.info; text: Tr.t("report-stats-only"); }
                             }
                         }

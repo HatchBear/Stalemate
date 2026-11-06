@@ -1,8 +1,25 @@
 import { ScrollView, ComboBox } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { Icon, IconKind } from "../icons.slint";
-import { AppState, Tr, DataKind, BuildsTab } from "../types.slint";
-import { HText, BText, Panel, Btn, IconBtn, TextBox, ViewFrame, StateBar, IconText } from "../widgets.slint";
+import { AppState, Tr, DataKind, BuildsTab, ItemChipUi, SectionUi } from "../types.slint";
+import { HText, BText, DText, PageTitle, Panel, PaperPanel, ParchmentCard, SectionHead, Divider, FormRow, Stamp, CatTag, TileGrid, Btn, TextBox, ViewFrame, StateBar, IconText } from "../widgets.slint";
+
+// The category mix of a build ("Weapon 5", stamped tags) and its sections, every item a shop tile.
+component BuildItems inherits VerticalLayout {
+    in property <[ItemChipUi]> mix;
+    in property <[SectionUi]> sections;
+    spacing: 0.4rem;
+    HorizontalLayout {
+        spacing: 0.35rem;
+        alignment: start;
+        for m in root.mix: CatTag { chip: m; y: 0; }
+    }
+    for sec in root.sections: VerticalLayout {
+        spacing: 0.25rem;
+        if sec.title != "": HText { text: sec.title; color: Theme.ink; font-size: 0.875rem; font-weight: 700; wrap: no-wrap; overflow: elide; }
+        TileGrid { items: sec.items; per-row: 6; }
+    }
+}
 
 component Library inherits VerticalLayout {
     spacing: 0.5rem;
@@ -15,27 +32,37 @@ component Library inherits VerticalLayout {
     }
     if root.content-visible: VerticalLayout {
         spacing: 0.5rem;
+        if AppState.library.length > 0: HorizontalLayout {
+            alignment: start;
+            Stamp { text: AppState.library-count-text; has-icon: true; kind: IconKind.info; }
+        }
         if AppState.library.length == 0: Panel {
             VerticalLayout {
-                padding: 0.75rem;
+                padding: 0.9rem;
                 IconText { kind: IconKind.empty; text: Tr.t("builds-empty"); }
             }
         }
-        for b in AppState.library: Panel {
+        for b in AppState.library: ParchmentCard {
             HorizontalLayout {
-                padding: 0.75rem;
+                padding: 1rem;
                 spacing: 0.75rem;
                 VerticalLayout {
                     horizontal-stretch: 1;
-                    HText { text: b.name; }
-                    BText { text: b.hero; }
-                    BText { text: b.meta; font-size: 0.8125rem; }
-                    if b.flag != "": IconText { kind: IconKind.error; tint: Theme.warn; text: b.flag; }
+                    preferred-width: 1px;
+                    HText { text: b.name; color: Theme.ink; font-size: 1.125rem; font-weight: 700; }
+                    BText { text: b.hero; color: Theme.ink; }
+                    BText { text: b.meta; color: Theme.ink; font-size: 0.8125rem; }
+                    if b.flag != "": IconText { kind: IconKind.error; tint: Theme.danger; text-color: Theme.ink; text: b.flag; }
+                    Rectangle { height: 0.4rem; }
+                    BuildItems { mix: b.mix; sections: b.sections; }
                 }
-                if b.active: IconText {
-                    kind: IconKind.pass;
-                    text: Tr.t("builds-active");
-                    horizontal-stretch: 0;
+                if b.active: VerticalLayout {
+                    alignment: start;
+                    Stamp {
+                        has-icon: true;
+                        kind: IconKind.pass;
+                        text: Tr.t("builds-active");
+                    }
                 }
                 if !b.active: VerticalLayout {
                     alignment: center;
@@ -52,149 +79,161 @@ component Library inherits VerticalLayout {
 component Import inherits VerticalLayout {
     spacing: 0.75rem;
     alignment: start;
-    BText { text: Tr.t("import-intro"); }
-    HorizontalLayout {
-        spacing: 0.75rem;
-        HText { text: Tr.t("import-hero"); vertical-alignment: center; }
-        ComboBox {
-            model: AppState.heroes;
-            current-index <=> AppState.import-hero;
-            horizontal-stretch: 1;
-            accessible-label: Tr.t("import-hero");
+    PaperPanel {
+        VerticalLayout {
+            padding: 1.25rem;
+            spacing: 0.75rem;
+            BText { text: Tr.t("import-intro"); }
+            HorizontalLayout {
+                spacing: 0.75rem;
+                HText { text: Tr.t("import-hero"); font-weight: 600; vertical-alignment: center; }
+                ComboBox {
+                    model: AppState.heroes;
+                    current-index <=> AppState.import-hero;
+                    horizontal-stretch: 1;
+                    accessible-label: Tr.t("import-hero");
+                }
+                Btn { primary: true; label: Tr.t("import-search"); clicked => { AppState.search-community(AppState.import-hero); } }
+            }
         }
-        Btn { label: Tr.t("import-search"); clicked => { AppState.search-community(AppState.import-hero); } }
     }
     StateBar {
         state: AppState.community-state;
         empty-text: Tr.t("import-empty");
         retry => { AppState.search-community(AppState.import-hero); }
     }
-    for r[i] in AppState.community-rows: Panel {
+    for r[i] in AppState.community-rows: ParchmentCard {
         HorizontalLayout {
-            padding: 0.75rem;
+            padding: 1rem;
             spacing: 0.75rem;
             VerticalLayout {
                 horizontal-stretch: 1;
-                HText { text: r.name; }
-                BText { text: r.hero; }
-                BText { text: r.usage; font-size: 0.8125rem; }
+                preferred-width: 1px;
+                HText { text: r.name; color: Theme.ink; font-size: 1.125rem; font-weight: 700; }
+                BText { text: r.hero; color: Theme.ink; }
+                BText { text: r.usage; color: Theme.ink; font-size: 0.8125rem; }
+                Rectangle { height: 0.4rem; }
+                BuildItems { mix: r.mix; sections: r.sections; }
             }
-            Btn { label: Tr.t("import-button"); clicked => { AppState.import-community(i); } }
+            VerticalLayout {
+                alignment: center;
+                Btn { primary: true; label: Tr.t("import-button"); clicked => { AppState.import-community(i); } }
+            }
         }
     }
 }
 
 component Builder inherits VerticalLayout {
-    spacing: 0.75rem;
+    spacing: 1rem;
     alignment: start;
-    HorizontalLayout {
-        spacing: 0.75rem;
-        HText { text: Tr.t("builder-hero"); vertical-alignment: center; }
-        ComboBox {
-            model: AppState.heroes;
-            current-index <=> AppState.builder-hero;
-            horizontal-stretch: 1;
-            accessible-label: Tr.t("builder-hero");
-        }
-    }
-    TextBox {
-        text <=> AppState.builder-name;
-        placeholder: Tr.t("builder-name-placeholder");
-        label: Tr.t("builder-name-placeholder");
-    }
-    for sec[si] in AppState.builder-sections: Panel {
-        background: AppState.builder-target == si ? Theme.raised : Theme.panel;
+    PaperPanel {
         VerticalLayout {
-            padding: 0.75rem;
-            spacing: 0.4rem;
-            HorizontalLayout {
-                spacing: 0.5rem;
-                TextBox {
-                    text: sec.title;
-                    placeholder: Tr.t("builder-section-placeholder");
-                    label: Tr.t("builder-section-placeholder");
-                    horizontal-stretch: 1;
-                    edited(t) => { AppState.builder-rename-section(si, t); }
-                }
-                Btn {
-                    label: AppState.builder-target == si ? Tr.t("builder-target-on") : Tr.t("builder-target");
-                    selected: AppState.builder-target == si;
-                    clicked => { AppState.builder-target = si; }
+            padding: 1.25rem;
+            spacing: 0.75rem;
+            FormRow {
+                label: Tr.t("builder-hero");
+                ComboBox {
+                    model: AppState.heroes;
+                    current-index <=> AppState.builder-hero;
+                    min-width: 14rem;
+                    accessible-label: Tr.t("builder-hero");
                 }
             }
-            if sec.items.length == 0: BText { text: Tr.t("builder-section-empty"); }
-            for item[ii] in sec.items: HorizontalLayout {
-                spacing: 0.4rem;
-                BText { text: item; horizontal-stretch: 1; vertical-alignment: center; }
-                IconBtn { kind: IconKind.up; label: Tr.t("builder-move-up"); clicked => { AppState.builder-move-item(si, ii, -1); } }
-                IconBtn { kind: IconKind.down; label: Tr.t("builder-move-down"); clicked => { AppState.builder-move-item(si, ii, 1); } }
-                IconBtn { kind: IconKind.remove; label: Tr.t("builder-remove"); clicked => { AppState.builder-remove-item(si, ii); } }
+            TextBox {
+                text <=> AppState.builder-name;
+                placeholder: Tr.t("builder-name-placeholder");
+                label: Tr.t("builder-name-placeholder");
+            }
+            for sec[si] in AppState.builder-sections: Panel {
+                background: AppState.builder-target == si ? Theme.raised : Theme.panel;
+                border-width: AppState.builder-target == si ? 3px : 1px;
+                VerticalLayout {
+                    padding: 0.8rem;
+                    spacing: 0.5rem;
+                    HorizontalLayout {
+                        spacing: 0.5rem;
+                        TextBox {
+                            text: sec.title;
+                            placeholder: Tr.t("builder-section-placeholder");
+                            label: Tr.t("builder-section-placeholder");
+                            horizontal-stretch: 1;
+                            edited(t) => { AppState.builder-rename-section(si, t); }
+                        }
+                        Btn {
+                            label: AppState.builder-target == si ? Tr.t("builder-target-on") : Tr.t("builder-target");
+                            selected: AppState.builder-target == si;
+                            clicked => { AppState.builder-target = si; }
+                        }
+                    }
+                    if sec.items.length == 0: BText { text: Tr.t("builder-section-empty"); }
+                    TileGrid {
+                        items: sec.items;
+                        per-row: 6;
+                        mode: 1;
+                        move-earlier-label: Tr.t("builder-move-up");
+                        move-later-label: Tr.t("builder-move-down");
+                        remove-label: Tr.t("builder-remove");
+                        move(ii, dir) => { AppState.builder-move-item(si, ii, dir); }
+                        remove(ii) => { AppState.builder-remove-item(si, ii); }
+                    }
+                }
+            }
+            HorizontalLayout {
+                alignment: start;
+                Btn { label: Tr.t("builder-add-section"); clicked => { AppState.builder-add-section(); } }
             }
         }
-    }
-    HorizontalLayout {
-        alignment: start;
-        Btn { label: Tr.t("builder-add-section"); clicked => { AppState.builder-add-section(); } }
     }
 
-    Panel {
+    PaperPanel {
         VerticalLayout {
-            padding: 0.75rem;
-            spacing: 0.4rem;
-            HText { text: Tr.t("builder-search-title"); }
+            padding: 1.25rem;
+            spacing: 0.6rem;
+            SectionHead { text: Tr.t("builder-search-title"); }
             TextBox {
                 placeholder: Tr.t("builder-search-placeholder");
                 label: Tr.t("builder-search-placeholder");
                 edited(t) => { AppState.builder-search(t); }
                 accepted(t) => { AppState.builder-search(t); }
             }
-            for name[i] in AppState.builder-results: HorizontalLayout {
-                spacing: 0.4rem;
-                BText { text: name; horizontal-stretch: 1; vertical-alignment: center; }
-                IconBtn { kind: IconKind.plus; label: Tr.t("builder-add-item"); clicked => { AppState.builder-add-item(i); } }
+            TileGrid {
+                items: AppState.builder-results;
+                per-row: 6;
+                mode: 2;
+                add-label: Tr.t("builder-add-item");
+                add(i) => { AppState.builder-add-item(i); }
             }
         }
     }
 
-    HText { text: Tr.t("builder-ability-title"); }
-    TextBox {
-        text <=> AppState.builder-ability;
-        placeholder: Tr.t("builder-ability-placeholder");
-        label: Tr.t("builder-ability-title");
-    }
-    if AppState.builder-error != "": IconText { kind: IconKind.error; tint: Theme.warn; text: AppState.builder-error; }
-    HorizontalLayout {
-        alignment: start;
-        Btn { label: Tr.t("builder-save"); clicked => { AppState.builder-save(); } }
+    PaperPanel {
+        VerticalLayout {
+            padding: 1.25rem;
+            spacing: 0.6rem;
+            SectionHead { text: Tr.t("builder-ability-title"); }
+            TextBox {
+                text <=> AppState.builder-ability;
+                placeholder: Tr.t("builder-ability-placeholder");
+                label: Tr.t("builder-ability-title");
+            }
+            // On paper the error icon is cream: the warning red is below 3:1 on paper.
+            if AppState.builder-error != "": IconText { kind: IconKind.error; text: AppState.builder-error; }
+            HorizontalLayout {
+                alignment: start;
+                Btn { primary: true; label: Tr.t("builder-save"); clicked => { AppState.builder-save(); } }
+            }
+        }
     }
 }
 
 export component BuildsView inherits ViewFrame {
     ScrollView {
         VerticalLayout {
-            padding: 1rem;
-            spacing: 0.75rem;
+            padding: 1.5rem;
+            padding-top: 1rem;
+            spacing: 1rem;
             alignment: start;
-            HText { text: Tr.t("builds-title"); font-size: 1.5rem; }
-            HorizontalLayout {
-                spacing: 0.5rem;
-                alignment: start;
-                Btn {
-                    label: Tr.t("builds-tab-library");
-                    selected: AppState.builds-tab == BuildsTab.library;
-                    clicked => { AppState.builds-tab = BuildsTab.library; }
-                }
-                Btn {
-                    label: Tr.t("builds-tab-import");
-                    selected: AppState.builds-tab == BuildsTab.community;
-                    clicked => { AppState.builds-tab = BuildsTab.community; }
-                }
-                Btn {
-                    label: Tr.t("builds-tab-builder");
-                    selected: AppState.builds-tab == BuildsTab.builder;
-                    clicked => { AppState.builds-tab = BuildsTab.builder; }
-                }
-            }
+            PageTitle { text: Tr.t("builds-title"); }
             if AppState.builds-tab == BuildsTab.library: Library { }
             if AppState.builds-tab == BuildsTab.community: Import { }
             if AppState.builds-tab == BuildsTab.builder: Builder { }

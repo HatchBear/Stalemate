@@ -31,8 +31,44 @@ compliance:
     sh scripts/no-hardcoded-ids.sh
     sh scripts/assets-check.sh
 
+# Windows MSI and portable zip (T-028a); needs MSVC tools and WiX 5.0.2, see packaging/windows/README.md
 win-installer:
-    @echo "win-installer: not available yet (T-028)"; exit 1
+    cargo build --release -p stalemate-app
+    pwsh -NoProfile -File scripts/package-windows.ps1
+
+# Native Linux .deb (T-004a); needs cargo-deb. Build in Ubuntu 22.04 for an old glibc, as linux-native.yml does
+deb:
+    cargo build --release -p stalemate-app
+    bash scripts/package-linux.sh deb
+
+# Native Linux .rpm (T-004a); needs cargo-generate-rpm
+rpm:
+    cargo build --release -p stalemate-app
+    bash scripts/package-linux.sh rpm
+
+# AppImage (T-004a); needs appimagetool or APPIMAGETOOL=/path/to/appimagetool-x86_64.AppImage
+appimage:
+    cargo build --release -p stalemate-app
+    bash scripts/package-linux.sh appimage
+
+# Portable tarball with config/ and i18n/ (T-004a)
+tarball:
+    cargo build --release -p stalemate-app
+    bash scripts/package-linux.sh tarball
+
+# Regenerate packaging/aur/.SRCINFO from the PKGBUILD; needs makepkg (Arch or a container)
+aur-srcinfo:
+    bash scripts/package-linux.sh aur-srcinfo
 
 fixtures-verify:
     @echo "fixtures-verify: not available yet (needs fixtures from T-013)"; exit 1
+
+# Fixture recorder (PRG-27, T-013). See crates/fixture-recorder/README.md.
+# Run while the match is live. Raw files go to fixtures-raw/<id>/, which is git-ignored.
+fixture-record MATCH_ID:
+    cargo run --release -p stalemate-fixture-recorder -- record --match-id {{MATCH_ID}} --out fixtures-raw/{{MATCH_ID}}
+
+# After the match: write the committable FX-BC and FX-API files. ME is your Account ID.
+fixture-normalize MATCH_ID ME:
+    cargo run --release -p stalemate-fixture-recorder -- normalize --raw fixtures-raw/{{MATCH_ID}} --match-id {{MATCH_ID}} --me {{ME}}
+    cargo run --release -p stalemate-fixture-recorder -- api --raw fixtures-raw/{{MATCH_ID}} --match-id {{MATCH_ID}} --me {{ME}}

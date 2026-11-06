@@ -3,7 +3,7 @@
 //! One authoritative `GameState` per match, built from `ParserEvent`s. This type is deliberately
 //! not `Serialize`: the only path from it to the UI in Live Mode is `live_safe` (NFR-FAIR-003, FP-4).
 
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 
 use crate::types::{AccountId, GameSecs, HeroId, ItemId, MatchId, ParserEvent};
 
@@ -26,7 +26,8 @@ pub struct PlayerState {
     pub kda: (u16, u16, u16),
     pub level: u8,
     pub lane: Option<u8>,
-    /// Net worth in souls (LS-08). `None` until known. Only enemies' values may be projected.
+    /// Net worth in souls (LS-08), from `ParserEvent::NetWorth`. `None` until known. Whether it
+    /// is shown is `live_safe`'s call.
     pub souls: Option<u32>,
     /// Review only; M-06 never copies it.
     pub position: Option<[f32; 3]>,
@@ -36,13 +37,14 @@ pub struct PlayerState {
 pub struct GameState {
     pub match_id: MatchId,
     pub t_game: GameSecs,
-    /// Provisional until the T-008 and T-010 delay measurement: `received_wall - (started_wall + t_game)`,
-    /// clamped at 0. It is refreshed on every `Tick`.
+    /// Broadcast delay in seconds, set by [`GameState::set_delay`] (FR-UI-008, DEC-050).
     pub delay_s: u32,
     pub players: Vec<PlayerState>,
     pub objectives: Vec<(u8, String, GameSecs)>,
     pub me: AccountId,
     pub self_state: Option<SelfStateData>,
+    /// Kept so `new` keeps its signature. Delay now comes from the Broadcast client (DEC-050).
+    #[allow(dead_code)]
     started_wall: SystemTime,
     /// Every event received, for Review. Includes chat, which is never displayed (DEC-025).
     log: Vec<ParserEvent>,
@@ -68,7 +70,11 @@ impl GameState {
         &self.log
     }
 
+    /// Account 0 is a bot and several share it, so per-player events never match it.
     fn player_mut(&mut self, id: AccountId) -> Option<&mut PlayerState> {
+        if id == 0 {
+            return None;
+        }
         self.players.iter_mut().find(|p| p.account_id == id)
     }
 
@@ -79,19 +85,34 @@ impl GameState {
         }
     }
 
-    /// Set a player's souls (LS-08). T-010 wiring: no `ParserEvent` carries per-player souls yet.
+    /// Set a player's net worth (LS-08). `ParserEvent::NetWorth` calls this.
     pub fn set_souls(&mut self, account_id: AccountId, souls: Option<u32>) {
         if let Some(p) = self.player_mut(account_id) {
             p.souls = souls;
         }
     }
 
-    pub fn apply(&mut self, ev: &ParserEvent, received_wall: SystemTime) {
+    /// Set the broadcast delay from a `BroadcastKind::Delay` message (FR-UI-008, DEC-050).
+    /// Rounded to whole seconds and clamped at 0; NaN gives 0.
+    pub fn set_delay(&mut self, secs: f32) {
+        self.delay_s = if secs.is_nan() || secs <= 0.0 {
+            0
+        } else {
+            secs.round() as u32 // `as` saturates for huge values
+        };
+    }
+
+    pub fn apply(&mut self, ev: &ParserEvent, _received_wall: SystemTime) {
         self.log.push(ev.clone());
         match ev {
             ParserEvent::Roster { players } => {
                 for r in players {
-                    if let Some(p) = self.player_mut(r.account_id) {
+                    // Bots all have account 0, so they match on account, team and hero.
+                    let existing = self.players.iter_mut().find(|p| {
+                        p.account_id == r.account_id
+                            && (r.account_id != 0 || (p.team == r.team && p.hero_id == r.hero_id))
+                    });
+                    if let Some(p) = existing {
                         p.name = r.name.clone();
                         p.team = r.team;
                         p.hero_id = r.hero_id;
@@ -113,17 +134,12 @@ impl GameState {
             }
             ParserEvent::Tick { t_game } => {
                 self.t_game = *t_game;
-                let expected = self.started_wall + Duration::from_secs(u64::from(*t_game));
-                self.delay_s = received_wall
-                    .duration_since(expected)
-                    .map(|d| d.as_secs_f64().round() as u32)
-                    .unwrap_or(0);
             }
             ParserEvent::Inventory { account_id, items } => {
                 if let Some(p) = self.player_mut(*account_id) {
                     p.items = items.clone();
                 }
-                if *account_id == self.me {
+                if *account_id != 0 && *account_id == self.me {
                     self.self_state
                         .get_or_insert_with(SelfStateData::default)
                         .items = items.clone();
@@ -186,7 +202,7 @@ mod tests {
     use crate::types::RosterEntry;
 
     fn t0() -> SystemTime {
-        SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000)
+        SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_000_000)
     }
 
     fn roster12() -> ParserEvent {
@@ -223,23 +239,110 @@ mod tests {
     }
 
     #[test]
-    fn tc_05_2_delay_tracks_wall_clock_gap() {
+    fn tc_05_2_set_delay_rounds_and_clamps() {
         let mut gs = GameState::new(7, 1, t0());
-        gs.apply(&ParserEvent::Tick { t_game: 0 }, t0());
         assert_eq!(gs.delay_s, 0);
-        gs.apply(
-            &ParserEvent::Tick { t_game: 10 },
-            t0() + Duration::from_secs(85),
-        );
-        assert!((73..=77).contains(&gs.delay_s), "{}", gs.delay_s);
-        assert_eq!(gs.t_game, 10);
+        gs.set_delay(75.4);
+        assert_eq!(gs.delay_s, 75);
+        gs.set_delay(75.6);
+        assert_eq!(gs.delay_s, 76);
+        gs.set_delay(-3.0);
+        assert_eq!(gs.delay_s, 0);
+        gs.set_delay(40.0);
+        gs.set_delay(f32::NAN);
+        assert_eq!(gs.delay_s, 0);
     }
 
     #[test]
-    fn delay_clamps_at_zero() {
+    fn tick_sets_game_time_only() {
         let mut gs = GameState::new(7, 1, t0());
-        gs.apply(&ParserEvent::Tick { t_game: 100 }, t0());
-        assert_eq!(gs.delay_s, 0);
+        gs.set_delay(60.0);
+        gs.apply(
+            &ParserEvent::Tick { t_game: 10 },
+            t0() + std::time::Duration::from_secs(500),
+        );
+        assert_eq!(gs.t_game, 10);
+        assert_eq!(gs.delay_s, 60);
+    }
+
+    #[test]
+    fn net_worth_event_sets_souls() {
+        let mut gs = GameState::new(7, 1, t0());
+        gs.apply(&roster12(), t0());
+        assert_eq!(gs.players[2].souls, None);
+        gs.apply(
+            &ParserEvent::NetWorth {
+                account_id: 3,
+                souls: 4200,
+            },
+            t0(),
+        );
+        assert_eq!(gs.players[2].souls, Some(4200));
+        assert_eq!(gs.players[3].souls, None);
+    }
+
+    fn bot(hero: u32, team: u8) -> RosterEntry {
+        RosterEntry {
+            account_id: 0,
+            name: String::new(),
+            team,
+            hero_id: hero,
+        }
+    }
+
+    #[test]
+    fn roster_keeps_two_bots_and_is_idempotent() {
+        let mut gs = GameState::new(7, 1, t0());
+        let ev = ParserEvent::Roster {
+            players: vec![
+                RosterEntry {
+                    account_id: 1,
+                    name: "me".into(),
+                    team: 0,
+                    hero_id: 5,
+                },
+                bot(10, 1),
+                bot(11, 1),
+            ],
+        };
+        gs.apply(&ev, t0());
+        assert_eq!(gs.players.len(), 3);
+        gs.apply(&ev, t0());
+        assert_eq!(gs.players.len(), 3);
+        // Per-player events for account 0 touch nobody.
+        gs.apply(
+            &ParserEvent::Inventory {
+                account_id: 0,
+                items: vec![1],
+            },
+            t0(),
+        );
+        gs.apply(
+            &ParserEvent::Kda {
+                account_id: 0,
+                kills: 1,
+                deaths: 1,
+                assists: 1,
+            },
+            t0(),
+        );
+        gs.apply(
+            &ParserEvent::Level {
+                account_id: 0,
+                level: 9,
+            },
+            t0(),
+        );
+        gs.apply(
+            &ParserEvent::NetWorth {
+                account_id: 0,
+                souls: 9,
+            },
+            t0(),
+        );
+        assert!(gs.players[1..]
+            .iter()
+            .all(|p| p.items.is_empty() && p.level == 0 && p.souls.is_none()));
     }
 
     #[test]

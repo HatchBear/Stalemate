@@ -7,6 +7,10 @@
 //!
 //! Alpha extracts only what the Live-Safe whitelist and the Alpha Review need (doc 03, FP-5):
 //! roster, items, KDA, level, net worth, own souls, game time, mode and the end of the match.
+//! Bots and empty slots have Account ID 0. They appear in the `Roster` (scouting shows them as
+//! hero-only) but get no per-player events (`Inventory`, `Kda`, `Level`, `NetWorth`): several bots
+//! would share the key 0, and consumers key those events by Account ID.
+//!
 //! Positions, health, cooldowns and chat are not extracted. They stay in the raw recording.
 
 use crate::types::{AccountId, GameSecs, HeroId, ItemId, ParserEvent, RosterEntry};
@@ -62,14 +66,11 @@ pub struct GameSnapshot {
 }
 
 impl GameSnapshot {
-    /// Every expected player is present with an Account ID and a hero.
+    /// Every expected player is present with a hero. Account ID 0 (a bot) is allowed.
     pub fn roster_complete(&self) -> bool {
         self.expected_players > 0
             && self.players.len() == self.expected_players as usize
-            && self
-                .players
-                .iter()
-                .all(|p| p.account_id != 0 && p.hero_id != 0)
+            && self.players.iter().all(|p| p.hero_id != 0)
     }
 }
 
@@ -89,7 +90,7 @@ pub fn events_from_snapshot(
     let complete = snap.roster_complete();
     if complete {
         let mut players: Vec<&PlayerSnapshot> = snap.players.iter().collect();
-        players.sort_by_key(|p| (p.team, p.account_id));
+        players.sort_by_key(|p| (p.team, p.account_id, p.hero_id));
         out.push(ParserEvent::Roster {
             players: players
                 .iter()
@@ -111,7 +112,7 @@ pub fn events_from_snapshot(
     if complete {
         let mut players: Vec<&PlayerSnapshot> = snap.players.iter().collect();
         players.sort_by_key(|p| p.account_id);
-        for p in players {
+        for p in players.into_iter().filter(|p| p.account_id != 0) {
             out.push(ParserEvent::Inventory {
                 account_id: p.account_id,
                 items: p.items.clone(),
@@ -220,6 +221,41 @@ mod tests {
     fn a_player_without_a_hero_keeps_the_roster_incomplete() {
         let mut s = snap(12);
         s.players[3].hero_id = 0;
+        assert!(!s.roster_complete());
+    }
+
+    #[test]
+    fn bots_stay_in_the_roster_but_get_no_player_events() {
+        let mut s = snap(10);
+        s.expected_players = 12;
+        s.players.push(player(0, 0));
+        s.players.push(player(0, 1));
+        s.players[10].hero_id = 3;
+        assert!(s.roster_complete());
+        let ev = events_from_snapshot(&s, None);
+        let rosters: Vec<_> = ev
+            .iter()
+            .filter(|e| matches!(e, ParserEvent::Roster { .. }))
+            .collect();
+        assert_eq!(rosters.len(), 1);
+        assert!(matches!(rosters[0], ParserEvent::Roster { players } if players.len() == 12));
+        let count = |f: fn(&ParserEvent) -> bool| ev.iter().filter(|e| f(e)).count();
+        assert_eq!(count(|e| matches!(e, ParserEvent::Kda { .. })), 10);
+        assert_eq!(count(|e| matches!(e, ParserEvent::Inventory { .. })), 10);
+        assert_eq!(count(|e| matches!(e, ParserEvent::Level { .. })), 10);
+        assert_eq!(count(|e| matches!(e, ParserEvent::NetWorth { .. })), 10);
+        assert!(!ev
+            .iter()
+            .any(|e| matches!(e, ParserEvent::Kda { account_id: 0, .. })));
+    }
+
+    #[test]
+    fn a_bot_without_a_hero_keeps_the_roster_incomplete() {
+        let mut s = snap(11);
+        s.expected_players = 12;
+        let mut bot = player(0, 1);
+        bot.hero_id = 0;
+        s.players.push(bot);
         assert!(!s.roster_complete());
     }
 

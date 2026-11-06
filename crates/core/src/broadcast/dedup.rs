@@ -170,4 +170,29 @@ mod tests {
         assert!(!d.admit(&inv(vec![1, 2])));
         assert!(d.admit(&inv(vec![1])));
     }
+
+    #[test]
+    fn roster_that_gains_a_bot_is_sent_once() {
+        let mut d = Dedup::default();
+        let human = RosterEntry {
+            account_id: 1,
+            name: "a".into(),
+            team: 0,
+            hero_id: 2,
+        };
+        let bot = RosterEntry {
+            account_id: 0,
+            name: "bot".into(),
+            team: 1,
+            hero_id: 3,
+        };
+        assert!(d.admit(&ParserEvent::Roster {
+            players: vec![human.clone()]
+        }));
+        let with_bot = ParserEvent::Roster {
+            players: vec![human, bot],
+        };
+        assert!(d.admit(&with_bot));
+        assert!(!d.admit(&with_bot.clone()));
+    }
 }

@@ -6,6 +6,7 @@ export enum IconKind {
     pass, fail, pending, stale, error, offline, loading, empty, info,
     plus, minus, up, down, remove,
     lane-troopers, neutral-camps, breakables, urn, sinners-sacrifice,
+    abandoned, weapon, vitality, spirit, soul, left, right,
 }
 
 export component Icon inherits Rectangle {
@@ -137,5 +138,52 @@ export component Icon inherits Rectangle {
         stroke: root.tint; stroke-width: 1.5px; fill: transparent;
         stroke-line-cap: round; stroke-line-join: round;
         commands: "M 8 1.5 Q 12 6 12 10 Q 12 14.5 8 14.5 Q 4 14.5 4 10 Q 4 8 6 6 Q 6.5 8 8 8 Q 8 4 8 1.5 Z";
+    }
+    // Abandoned: a door with an arrow leaving it
+    if root.kind == IconKind.abandoned: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 6.5 2 L 2 2 L 2 14 L 6.5 14 M 6 8 L 14 8 M 11 5 L 14 8 L 11 11";
+    }
+    // Item categories (DEC-068): original shapes. Weapon: crosshair
+    if root.kind == IconKind.weapon: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 8 3.5 A 4.5 4.5 0 1 0 8 12.5 A 4.5 4.5 0 1 0 8 3.5 M 8 0.8 L 8 4.5 M 8 11.5 L 8 15.2 M 0.8 8 L 4.5 8 M 11.5 8 L 15.2 8";
+    }
+    // Vitality: a cross
+    if root.kind == IconKind.vitality: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 6 2 L 10 2 L 10 6 L 14 6 L 14 10 L 10 10 L 10 14 L 6 14 L 6 10 L 2 10 L 2 6 L 6 6 Z";
+    }
+    // Spirit: a diamond with a spark
+    if root.kind == IconKind.spirit: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 8 1.5 L 14.5 8 L 8 14.5 L 1.5 8 Z M 8 5.5 L 8 10.5 M 5.5 8 L 10.5 8";
+    }
+    // Souls (DEC-074): an orb with a curling wisp above it, and a highlight arc. Original shape.
+    if root.kind == IconKind.soul: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 1.5px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 8 6.5 A 4.2 4.2 0 1 0 8 14.9 A 4.2 4.2 0 1 0 8 6.5 M 6.4 6.9 C 5.2 4.8 7 3.6 7.4 1.2 C 9.6 2.8 10.6 4.8 9.6 6.9 M 5.9 10.8 A 2.2 2.2 0 0 0 8 12.7";
+    }
+    if root.kind == IconKind.left: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 2px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 13 8 L 3 8 M 7.5 3.5 L 3 8 L 7.5 12.5";
+    }
+    if root.kind == IconKind.right: Path {
+        width: 100%; height: 100%; viewbox-width: 16; viewbox-height: 16;
+        stroke: root.tint; stroke-width: 2px; fill: transparent;
+        stroke-line-cap: round; stroke-line-join: round;
+        commands: "M 3 8 L 13 8 M 8.5 3.5 L 13 8 L 8.5 12.5";
     }
 }

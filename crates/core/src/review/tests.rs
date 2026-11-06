@@ -316,3 +316,91 @@ fn three_runs_give_identical_json() {
     assert_eq!(runs[0], runs[1]);
     assert_eq!(runs[1], runs[2]);
 }
+
+#[test]
+fn standard_round_trips_and_other_mode_has_a_single_write() {
+    let s = Storage::open_in_memory().unwrap();
+    // Count every UPDATE of `matches`: the mode must be written by the insert alone.
+    s.with_conn(|c| {
+        c.execute_batch(
+            "CREATE TABLE upd(n); CREATE TRIGGER t AFTER UPDATE ON matches BEGIN INSERT INTO upd VALUES (1); END;",
+        )
+    })
+    .unwrap();
+    let m = meta(match_json([5000, 6000, 7000], "Normal", 1800));
+    let r = build_stats_review(&m, ME, &rules()).unwrap();
+    persist_stats_review(&s, &m, ME, &r, "p1").unwrap();
+    assert_eq!(
+        s.get_match(777).unwrap().unwrap().game_mode,
+        GameMode::Normal
+    );
+    assert_eq!(count(&s, "reviews"), 1);
+
+    for api in ["StreetBrawl", "MadeUpMode", ""] {
+        // Fresh store per mode: a repeat persist of one match is an upsert, which is not a mode write.
+        let s2 = Storage::open_in_memory().unwrap();
+        s2.with_conn(|c| {
+            c.execute_batch(
+                "CREATE TABLE upd(n); CREATE TRIGGER t AFTER UPDATE ON matches BEGIN INSERT INTO upd VALUES (1); END;",
+            )
+        })
+        .unwrap();
+        let m = meta(match_json([5000, 6000, 7000], api, 1800));
+        let r = build_stats_review(&m, ME, &rules()).unwrap();
+        persist_stats_review(&s2, &m, ME, &r, "p1").unwrap();
+        let want = match api {
+            "StreetBrawl" => GameMode::StreetBrawl,
+            "MadeUpMode" => GameMode::Other("made_up_mode".into()),
+            _ => GameMode::Other("unknown".into()),
+        };
+        assert_eq!(s2.get_match(777).unwrap().unwrap().game_mode, want);
+        assert_eq!(count(&s2, "reviews"), 0);
+        assert_eq!(count(&s2, "upd"), 0);
+    }
+    assert_eq!(count(&s, "upd"), 0);
+}
+
+#[test]
+fn stats_review_json_round_trips() {
+    for mode in ["Normal", "StreetBrawl"] {
+        let m = meta(match_json([5000, 6000, 7000], mode, 1800));
+        let r = build_stats_review(&m, ME, &rules()).unwrap();
+        let json = serde_json::to_string(&r).unwrap();
+        let back: StatsReview = serde_json::from_str(&json).unwrap();
+        assert_same(&back, &r);
+    }
+}
+
+/// Equal, except that `share_pct` may differ by float parse error: serde_json's default
+/// parser can be one ulp off on 17-digit values (fixed by its `float_roundtrip` feature).
+fn assert_same(a: &StatsReview, b: &StatsReview) {
+    let norm = |r: &StatsReview| {
+        let mut r = r.clone();
+        if let Some(s) = r.soul_sources.as_mut() {
+            for row in &mut s.rows {
+                row.share_pct = row.share_pct.map(|p| (p * 1e6).round());
+            }
+        }
+        r
+    };
+    assert_eq!(norm(a), norm(b));
+}
+
+#[test]
+fn saved_report_json_reads_back() {
+    let s = Storage::open_in_memory().unwrap();
+    let m = meta(match_json([5000, 6000, 7000], "Normal", 1800));
+    let r = build_stats_review(&m, ME, &rules()).unwrap();
+    persist_stats_review(&s, &m, ME, &r, "p1").unwrap();
+    let json: String = s
+        .with_conn(|c| {
+            c.query_row(
+                "SELECT report_json FROM reviews WHERE match_id = 777",
+                [],
+                |r| r.get(0),
+            )
+        })
+        .unwrap();
+    let back: StatsReview = serde_json::from_str(&json).unwrap();
+    assert_same(&back, &r);
+}

@@ -92,6 +92,7 @@ Defines how every requirement is verified: test levels, the full test case list,
 | TST-084 | FR-BUILD-006 | Simulated patch | Affected builds flagged |
 | TST-090 | FR-UI-004, NFR-PLAT-001 | KDE Plasma 6 Wayland, Deadlock borderless windowed, Flatpak | Overlay above the game, click-through, hotkey works |
 | TST-091 | FR-UI-005, NFR-PLAT-003 | Windows 11 and 10, borderless windowed | Same as TST-090 |
+| TST-094 | NFR-PLAT-005 | Install each native package in a clean container (Debian stable, Ubuntu LTS, Fedora, Arch) and on the author's CachyOS machine for the AUR package | Installs with no manual dependency steps; `stalemate --version` runs; the app starts and finds a Steam library |
 | TST-092 | NFR-PLAT-002 | Native Steam; Flatpak Steam; library on a second drive granted by portal | Deadlock and `console.log` found in all three |
 | TST-093 | NFR-PLAT-004 | GNOME Wayland and an X11 session | Main window works; overlay result recorded |
 | TST-100 | FR-SET-001 | Each provider | Off, Local and Own key all work; keys only in the keyring |
@@ -102,6 +103,7 @@ Defines how every requirement is verified: test levels, the full test case list,
 | TST-105 | [11](11-data-model.md) | Migrations on an empty and a populated database | Idempotent, no data loss |
 | TST-106 | FR-SET-004 | Mock GitHub Releases response; toggle off | Newer version shown; no request when the toggle is off |
 | TST-107 | FR-UI-009 | Navigate the main window; toggle mute; change volume | Sounds play by default and respect mute and volume. None play from the overlay |
+| TST-108 | FR-SET-005, NFR-PRIV-001 | Play a fixture match with diagnostics on, then save the file | The file holds every section in "Alpha diagnostics file"; a scan finds no API key, no other player's name or Account ID, no chat, and no home-folder path; TST-103 shows no traffic from it |
 | TST-110 | [13](13-art-and-asset-pipeline.md) | `assets-check` CI job | All AST files present; SVG rules met; no placeholders in v1 builds |
 
 ### Verified by review, not by test
@@ -120,7 +122,7 @@ FR-REV-011 is covered by TST-068, and NFR-FAIR-002 and NFR-FAIR-003 by TST-030 (
 |---|---|---|---|
 | KDE Plasma 6, Wayland | Native | Yes | Alpha (window), Beta (overlay) |
 | KDE Plasma 6, Wayland | Flatpak | Yes | Alpha (window), Beta (overlay) |
-| Windows 11 | Native | Yes | Beta |
+| Windows 11 | Native | Yes | Alpha (window, DEC-063), Beta (overlay) |
 | Windows 10 | Native | Yes | v1 |
 | GNOME Wayland | Native | Best effort | v1 |
 | KDE Plasma 6, X11 | Native | Best effort | v1 |
@@ -135,6 +137,40 @@ Within 24 h of a Deadlock patch [ASSUMPTION]:
 4. Refresh the API-15 asset cache; re-validate builds (FR-BUILD-006).
 5. Re-check the DATA-002 timers and flex slot rules against the patch (DEC-032).
 6. Check the DATA-004 model's Brier score on the new patch's matches once enough are available. Rerun PRG-26 only if it exceeds 0.20.
+
+### Alpha diagnostics file (FR-SET-005, DEC-070)
+
+Testers save one file and send it to the developer, so bug reports rest on what the app saw, not only on what the tester remembers. Nothing leaves the computer unless the tester sends the file (NFR-PRIV-001).
+
+- **Collecting:** on by default in Alpha builds, local only, and switchable in Settings. The first-run setup says what is kept. Old data rolls off after `[diagnostics] keep_days`.
+- **Saving:** Settings → "Save diagnostics file" writes `stalemate-diagnostics-<date>.zip` to the Downloads folder (Flatpak: through the file-chooser portal) and opens the folder. Before saving, the tester sees a summary of what's inside, can add a note, and can choose to include their own Account ID (off by default). Everything inside is plain text or JSON, so the tester can read it.
+- **"Mark a problem":** a button on Home and Live, which writes a timestamped marker with an optional one-line note into the diagnostics, so the developer can find the moment.
+- **Contents:**
+    - `about.json`: app version and commit, package format (Flatpak, AUR, deb, rpm, AppImage, tarball, MSI or zip, set at build time), OS and version, desktop and session (for example KDE Wayland), display scale, Steam kind (native or Flatpak).
+    - `checks.json`: every Home and setup check with its result and time.
+    - `matches.jsonl`, one line per match:
+        - match ID;
+        - detection latency from the log line to the event (TST-010);
+        - the Broadcast: located or not, time to connect, delay, fragment errors and the item resolve rate;
+        - time to a complete roster;
+        - the scouting lookups: count, failures, rate-limit waits and time to the first card;
+        - the Review: fetch attempts and the result;
+        - Purchase Log event count.
+    - `perf.jsonl`: CPU % and resident memory every `[diagnostics] perf_sample_s` during Live (NFR-PERF-001, NFR-PERF-002).
+    - `usage.json`: counts of views opened and main actions (build imports, builder saves, "Try again"). Counts only, no content.
+    - `markers.jsonl`: the "Mark a problem" notes.
+    - `log/`: the app's own `tracing` log, info level and above, plus any panic with its backtrace.
+- **Never included:**
+    - the API key or any secret;
+    - other players' names or Account IDs (replaced as in DEC-060);
+    - chat;
+    - raw Broadcast recordings or `console.log`;
+    - Steam IDs of servers or lobbies;
+    - the tester's own Account ID, unless they chose to include it;
+    - folder paths outside the app's own folders (the home folder becomes `~`).
+
+  A final scan refuses to save if any of these is found, the same way the fixture recorder's leak scan does.
+- **Size:** capped at `[diagnostics] max_file_mb`; the oldest log lines go first.
 
 ### Beta field testing [ASSUMPTION]
 

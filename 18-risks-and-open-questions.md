@@ -42,7 +42,7 @@ Likelihood (L) and Impact (I): H = high, M = medium, L = low.
 |---|---|---|---|
 | OQ-01 | Are there target dates for Alpha, Beta and v1? **Resolved (DEC-034): none, effort only.** | Scheduling | [17](17-roadmap.md) |
 | OQ-02 | How can the app get the Broadcast URL for a match without its own Valve protocol client? **Resolved (DEC-049): deadlock-api's live URL endpoints. Gate passed.** | FR-DATA-003 (Alpha) | [04](04-data-sources-and-ingestion.md) |
-| OQ-03 | What's the exact `console.log` path, and which lines mark match start, end and match ID? | FR-DATA-001 (Alpha) | [04](04-data-sources-and-ingestion.md) |
+| OQ-03 | What's the exact `console.log` path, and which lines mark match start, end and match ID? **Resolved (DEC-062): path verified on native Steam; patterns in DATA-001. Abandon and reconnect lines still to capture.** | FR-DATA-001 (Alpha) | [04](04-data-sources-and-ingestion.md) |
 | OQ-04 | Which scoreboard fields are visible in-game (LS-05 to LS-09, LS-11, LS-13)? **Resolved (DEC-048): all of them; lanes for every player.** | Live-Safe whitelist | [03](03-fair-play-and-compliance.md) |
 | OQ-05 | Which fields does API-05 return (purchases, selected build, pre-swap hero, lane, party, per-interval stats), and what's the batch limit? Does the Broadcast expose the user's selected build? **Resolved for API-05 (DEC-053): all except party; stats every 180 s; 1,000 IDs per call. The Broadcast selected-build question stays open for Beta.** | Scouting, Review, FR-BUILD-004 | [04](04-data-sources-and-ingestion.md) |
 | OQ-06 | Which external build sites should be supported? **FR-BUILD-002 is now Should; JSON and share-code import ship first (DEC-031).** | FR-BUILD-002 | [08](08-builds-import-and-builder.md) |

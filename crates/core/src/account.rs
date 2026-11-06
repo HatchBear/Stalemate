@@ -76,22 +76,58 @@ pub fn parse_manual_account(input: &str) -> Result<AccountId, AccountError> {
 }
 
 pub fn candidate_roots(home: &Path) -> Vec<PathBuf> {
-    #[cfg(target_os = "linux")]
-    return vec![
+    platform_roots(home)
+}
+
+#[cfg(target_os = "linux")]
+fn platform_roots(home: &Path) -> Vec<PathBuf> {
+    vec![
         home.join(".local/share/Steam"),
         home.join(".steam/steam"),
         home.join(".var/app/com.valvesoftware.Steam/.local/share/Steam"),
-    ];
-    #[cfg(windows)]
-    {
-        let _ = home;
-        return vec![PathBuf::from(r"C:\Program Files (x86)\Steam")];
+    ]
+}
+
+#[cfg(windows)]
+fn platform_roots(_home: &Path) -> Vec<PathBuf> {
+    windows_roots(steam_path_from_registry().as_deref())
+}
+
+#[cfg(not(any(target_os = "linux", windows)))]
+fn platform_roots(_home: &Path) -> Vec<PathBuf> {
+    Vec::new()
+}
+
+/// Windows Steam roots: the registry's `SteamPath` first, then the default install folder.
+/// Pure, so the tests run on every OS (NFR-PLAT-003).
+pub fn windows_roots(registry_steam_path: Option<&str>) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Some(p) = registry_steam_path.map(normalize_windows_path) {
+        if !p.is_empty() {
+            out.push(PathBuf::from(p));
+        }
     }
-    #[cfg(not(any(target_os = "linux", windows)))]
-    {
-        let _ = home;
-        Vec::new()
+    let default = PathBuf::from(r"C:\Program Files (x86)\Steam");
+    if !out.contains(&default) {
+        out.push(default);
     }
+    out
+}
+
+/// `SteamPath` is written with forward slashes (`c:/program files (x86)/steam`). Use backslashes.
+pub fn normalize_windows_path(p: &str) -> String {
+    p.trim().replace('/', "\\")
+}
+
+/// `HKCU\Software\Valve\Steam\SteamPath`. Read only. `None` if Steam never ran for this user.
+/// Compiled on Windows only.
+#[cfg(windows)]
+fn steam_path_from_registry() -> Option<String> {
+    windows_registry::CURRENT_USER
+        .open(r"Software\Valve\Steam")
+        .ok()?
+        .get_string("SteamPath")
+        .ok()
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -306,6 +342,7 @@ mod tests {
         fs::write(path, text).unwrap();
     }
 
+    #[cfg(target_os = "linux")]
     fn library_vdf(paths: &[&Path]) -> String {
         let mut s = String::from("\"libraryfolders\"\n{\n");
         for (i, p) in paths.iter().enumerate() {
@@ -450,6 +487,55 @@ mod tests {
         let vdf =
             "\"libraryfolders\"\n{\n\t\"0\"\n\t{\n\t\t\"path\"\t\"D:\\\\SteamLibrary\"\n\t}\n}\n";
         assert_eq!(library_paths(vdf), vec![PathBuf::from(r"D:\SteamLibrary")]);
+    }
+
+    #[test]
+    fn windows_roots_prefers_registry_then_default() {
+        assert_eq!(
+            windows_roots(Some("d:/games/steam")),
+            vec![
+                PathBuf::from(r"d:\games\steam"),
+                PathBuf::from(r"C:\Program Files (x86)\Steam")
+            ]
+        );
+        assert_eq!(
+            windows_roots(None),
+            vec![PathBuf::from(r"C:\Program Files (x86)\Steam")]
+        );
+        // Blank value, or the same as the default: no empty or duplicate root.
+        assert_eq!(windows_roots(Some("  ")).len(), 1);
+        assert_eq!(
+            windows_roots(Some("C:/Program Files (x86)/Steam")),
+            vec![PathBuf::from(r"C:\Program Files (x86)\Steam")]
+        );
+    }
+
+    #[test]
+    fn windows_libraryfolders_sample_parses() {
+        let vdf = r#""libraryfolders"
+{
+	"0"
+	{
+		"path"		"C:\\Program Files (x86)\\Steam"
+		"label"		""
+		"apps"
+		{
+			"1422450"		"123"
+		}
+	}
+	"1"
+	{
+		"path"		"E:\\Games\\SteamLibrary"
+	}
+}
+"#;
+        assert_eq!(
+            library_paths(vdf),
+            vec![
+                PathBuf::from(r"C:\Program Files (x86)\Steam"),
+                PathBuf::from(r"E:\Games\SteamLibrary")
+            ]
+        );
     }
 
     // Manual entry (FR-DATA-006, TST-015)

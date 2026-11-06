@@ -87,12 +87,14 @@ impl Bucket {
             .map_err(|n| n.wait_time_from(self.clock.now()))
     }
 
-    /// Wait until one more request is allowed.
-    pub(crate) async fn acquire(&self) {
+    /// Wait until one more request is allowed. Returns `true` if it had to wait.
+    pub(crate) async fn acquire(&self) -> bool {
+        let mut waited = false;
         loop {
             match self.limiter.check() {
-                Ok(()) => return,
+                Ok(()) => return waited,
                 Err(not_until) => {
+                    waited = true;
                     let wait = not_until.wait_time_from(self.clock.now());
                     self.clock.sleep(wait.max(Duration::from_millis(1))).await;
                 }

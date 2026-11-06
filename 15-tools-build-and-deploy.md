@@ -28,7 +28,7 @@ Specifies the developer environment, build commands, Flatpak and Windows packagi
 | Steam and Deadlock | Current | Manual and fixture testing |
 | A local LLM server, for example Ollama | Latest | Testing the Local provider |
 | Windows 11 machine or VM with MSVC Build Tools | Current | Windows builds and tests |
-| WiX Toolset | Version supported by the chosen cargo integration [VERIFY] | Windows installer |
+| WiX Toolset | 5.0.2, the last release under MS-RL; 6.0 and later use the OSMF EULA (DEC-072). Build tool only, never shipped | Windows installer |
 
 **Test machines:**
 
@@ -69,6 +69,7 @@ finish-args:
   - --filesystem=~/.local/share/Steam:ro                    # native Steam
   - --filesystem=~/.steam:ro
   - --filesystem=~/.var/app/com.valvesoftware.Steam:ro      # Flatpak Steam
+  - --filesystem=xdg-download                              # saved diagnostics file (DEC-075)
   # Steam libraries elsewhere: the user grants access through the FileChooser portal
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin
@@ -99,7 +100,7 @@ modules:
 ### Windows packaging
 
 - **Targets:** `x86_64-pc-windows-msvc`. Binaries `stalemate.exe`, `stalemate-overlay.exe` and `stalemate-parser-fallback.exe` (self-contained .NET).
-- **Installer:** WiX MSI, per-user install to `%LOCALAPPDATA%\Programs\stalemate\` [ASSUMPTION]. Uses AST-ICON-003, AST-STORE-002 and AST-STORE-003.
+- **Installer:** WiX MSI, per-user install to `%LOCALAPPDATA%\Programs\stalemate\` [ASSUMPTION], plus a portable zip of the same files (DEC-063). Built with the static C runtime, so no Visual C++ redistributable is needed. Unsigned in Alpha: testers see a SmartScreen warning. Uses AST-ICON-003, AST-STORE-002 and AST-STORE-003.
 - **Code signing:** Apply to a free open-source signing programme, which needs the open GPL-3.0 licence (DEC-020, DEC-033). Until approved, ship unsigned with a README note about SmartScreen warnings.
 
 ### CI (GitHub Actions) [ASSUMPTION host]
@@ -109,13 +110,14 @@ modules:
 | `ci.yml` | Every push and PR | `lint` (Linux); `test-linux`; `test-windows`; `assets-check` (TST-110) |
 | `flatpak.yml` | Push to `main`, tags | Build the Flatpak bundle in the KDE SDK container; upload as an artifact |
 | `windows.yml` | Push to `main`, tags | Build the MSI; upload as an artifact |
-| `release.yml` | Tag `v*` | Create a GitHub Release with the `.flatpak` bundle and the MSI; for beta and stable, open a PR to the Flathub repository |
+| `linux-native.yml` | Push to `main`, tags | Build the binary in the oldest supported glibc container, then the `.deb`, `.rpm`, AppImage and tarball; install and launch smoke tests in Debian, Ubuntu, Fedora and Arch containers (TST-094); upload as artifacts (DEC-064) |
+| `release.yml` | Tag `v*` | Create a GitHub Release with the `.flatpak` bundle, the native Linux packages and the MSI; update the AUR `PKGBUILD` version and checksum; for beta and stable, open a PR to the Flathub repository |
 
 ### Versioning and channels
 
 | Channel | Versions [ASSUMPTION] | Linux | Windows |
 |---|---|---|---|
-| Alpha | `0.1.x`–`0.4.x` | `.flatpak` bundle on GitHub Releases | — |
+| Alpha | `0.1.x`–`0.4.x` | `.flatpak` bundle, `.deb`, `.rpm`, AppImage and tarball on GitHub Releases; AUR package (DEC-064) | MSI and portable zip on GitHub Releases (DEC-063) |
 | Beta | `0.5.x`–`0.9.x` | Flathub beta branch | MSI on GitHub Releases (prerelease) |
 | Stable | `1.0.0`+ | Flathub stable | MSI on GitHub Releases |
 

@@ -6,12 +6,12 @@
 use crate::api_client::{MatchMetadata, MetaPlayer, MetaStat};
 use crate::settings::Rules;
 use crate::types::{AccountId, HeroId, MatchId};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// The `game_mode` string of a Standard match in API-05 (DEC-019). Anything else is non-Standard.
 pub(crate) const STANDARD_GAME_MODE: &str = "Normal";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReviewResult {
     Win,
@@ -21,14 +21,14 @@ pub enum ReviewResult {
     Unknown,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReviewFlags {
     /// Shorter than `review.min_match_s`.
     pub short_match: bool,
     pub abandoned: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LaneUnavailable {
     NonStandardMode,
@@ -40,7 +40,7 @@ pub enum LaneUnavailable {
     NoStats,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LaneLead {
     pub t_game_s: u32,
     pub assigned_lane: i32,
@@ -51,7 +51,7 @@ pub struct LaneLead {
     pub lead: f64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum LaneSection {
     Available(LaneLead),
@@ -59,14 +59,14 @@ pub enum LaneSection {
 }
 
 /// R-02: soul deficit against lane opponents at the end of the lane phase (FR-REV-003).
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct R02Finding {
     pub t_game_s: u32,
     pub deficit: f64,
     pub threshold: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SoulSource {
     LaneTroopers,
@@ -79,7 +79,7 @@ pub enum SoulSource {
     Other,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SoulRow {
     pub source: SoulSource,
     /// `None` is "unavailable", not zero.
@@ -88,13 +88,13 @@ pub struct SoulRow {
     pub share_pct: Option<f64>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SoulSources {
     pub total: u64,
     pub rows: Vec<SoulRow>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StatsReview {
     pub match_id: MatchId,
     pub result: ReviewResult,

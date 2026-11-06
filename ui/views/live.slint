@@ -1,25 +1,85 @@
 import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { Icon, IconKind } from "../icons.slint";
-import { AppState, Tr, DataKind, LogAction } from "../types.slint";
-import { HText, BText, Panel, ViewFrame, StateBar, IconText } from "../widgets.slint";
+import { AppState, Tr, DataKind, LogAction, TeamSide, EnemyRowUi } from "../types.slint";
+import { HText, BText, DText, PageTitle, Panel, PaperPanel, PlayerRow, Portrait, TeamBanner, SideBadge, ItemLine, TileRow, Stamp, SectionHead, Divider, ViewFrame, StateBar, IconText, MarkProblem } from "../widgets.slint";
 
-// Only Live-Safe fields reach this view (NFR-FAIR-003). KDA and level columns show only
-// when the view model provides them (blocked until verified, T-007).
+// One small value with its label above it: level, KDA or souls. Souls carry the soul glyph.
+component Cell inherits VerticalLayout {
+    in property <string> label;
+    in property <string> value;
+    in property <bool> glyph: false;
+    alignment: center;
+    spacing: 0.1rem;
+    HText { text: root.label; font-size: 0.75rem; color: Theme.paper-muted; wrap: no-wrap; }
+    HorizontalLayout {
+        spacing: 0.3rem;
+        if root.glyph: Icon { kind: IconKind.soul; size: 1rem; y: 0.1rem; }
+        BText { text: root.value; font-weight: 700; wrap: no-wrap; }
+    }
+}
+
+// A friends-list row for one enemy player. Only Live-Safe fields reach it (NFR-FAIR-003); the
+// level, KDA and souls cells show only when the view model provides them.
+component EnemyRow inherits PlayerRow {
+    in property <EnemyRowUi> data;
+    bar: root.data.side == TeamSide.amber ? Theme.amber : Theme.sapphire;
+    HorizontalLayout {
+        padding: 0.7rem;
+        padding-left: 0.8rem;
+        spacing: 0.85rem;
+        Portrait {
+            initial: root.data.initial;
+            image: root.data.portrait;
+            has-image: root.data.has-portrait;
+            size: 3rem;
+            ring: root.data.side == TeamSide.amber ? Theme.amber-dark : Theme.sapphire-dark;
+            y: 0;
+        }
+        VerticalLayout {
+            width: 11rem;
+            alignment: center;
+            spacing: 0.15rem;
+            HText { text: root.data.name; font-size: 1.0625rem; font-weight: 700; wrap: no-wrap; overflow: elide; }
+            BText { text: root.data.hero; font-size: 0.8125rem; color: Theme.paper-muted; wrap: no-wrap; overflow: elide; }
+            HorizontalLayout {
+                alignment: start;
+                SideBadge { side: root.data.side; text: root.data.side-label; }
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            preferred-width: 1px;
+            alignment: center;
+            if !root.data.has-items: BText { text: root.data.items-none; color: Theme.paper-muted; }
+            VerticalLayout {
+                spacing: 0.3rem;
+                for r in root.data.item-rows: TileRow { chips: r.chips; }
+            }
+        }
+        if AppState.show-level: Cell { label: Tr.t("live-col-level"); value: root.data.level; width: 3rem; }
+        if AppState.show-kda: Cell { label: Tr.t("live-col-kda"); value: root.data.kda; width: 4.5rem; }
+        if AppState.show-souls: Cell { label: Tr.t("live-col-souls"); value: root.data.souls; glyph: true; width: 5.5rem; }
+    }
+}
+
+// Only Live-Safe fields reach this view (NFR-FAIR-003). Level, KDA and souls show only when the
+// view model provides them.
 export component LiveView inherits ViewFrame {
     property <bool> content-visible: AppState.live-state.kind == DataKind.loaded || AppState.live-state.kind == DataKind.stale;
     ScrollView {
         VerticalLayout {
-            padding: 1rem;
-            spacing: 0.75rem;
+            padding: 1.5rem;
+            padding-top: 1rem;
+            spacing: 1rem;
             alignment: start;
-            HText { text: Tr.t("live-title"); font-size: 1.5rem; }
+            PageTitle { text: Tr.t("live-title"); }
 
             Panel {
                 HorizontalLayout {
-                    padding: 0.6rem;
+                    padding: 0.8rem;
                     spacing: 0.75rem;
-                    HText { text: Tr.t("live-delay-label"); vertical-alignment: center; }
+                    HText { text: Tr.t("live-delay-label"); font-weight: 600; vertical-alignment: center; }
                     BText {
                         text: AppState.delay-known ? AppState.delay-text : Tr.t("live-delay-unknown");
                         vertical-alignment: center;
@@ -29,6 +89,8 @@ export component LiveView inherits ViewFrame {
                 }
             }
 
+            MarkProblem { }
+
             StateBar {
                 state: AppState.live-state;
                 empty-text: Tr.t("live-empty");
@@ -37,73 +99,54 @@ export component LiveView inherits ViewFrame {
 
             if root.content-visible: VerticalLayout {
                 spacing: 0.75rem;
-                Panel {
-                    VerticalLayout {
-                        padding: 0.75rem;
-                        spacing: 0.5rem;
-                        HText { text: Tr.t("live-board-title"); font-size: 1.125rem; }
-                        HorizontalLayout {
-                            spacing: 0.75rem;
-                            HText { text: Tr.t("live-col-hero"); width: 7rem; }
-                            HText { text: Tr.t("live-col-player"); width: 8rem; }
-                            HText { text: Tr.t("live-col-items"); horizontal-stretch: 1; }
-                            if AppState.show-kda: HText { text: Tr.t("live-col-kda"); width: 5rem; }
-                            if AppState.show-level: HText { text: Tr.t("live-col-level"); width: 3.5rem; }
-                        }
-                        Rectangle { height: 1px; background: Theme.text; }
-                        for row in AppState.enemy-rows: HorizontalLayout {
-                            spacing: 0.75rem;
-                            HText { text: row.hero; width: 7rem; }
-                            BText { text: row.name; width: 8rem; }
-                            VerticalLayout {
-                                horizontal-stretch: 1;
-                                if row.item-icons.length > 0: HorizontalLayout {
-                                    spacing: 0.25rem;
-                                    alignment: start;
-                                    for icon in row.item-icons: Image {
-                                        source: icon;
-                                        width: 1.5rem;
-                                        height: 1.5rem;
-                                    }
-                                }
-                                BText { text: row.items-text; }
-                            }
-                            if AppState.show-kda: BText { text: row.kda; width: 5rem; }
-                            if AppState.show-level: BText { text: row.level; width: 3.5rem; }
-                        }
+                VerticalLayout {
+                    spacing: 0.5rem;
+                    if AppState.enemy-rows.length > 0: TeamBanner {
+                        side: AppState.enemy-rows[0].side;
+                        text: AppState.enemy-board-heading;
                     }
+                    for row in AppState.enemy-rows: EnemyRow { data: row; }
                 }
 
-                Panel {
+                PaperPanel {
                     VerticalLayout {
-                        padding: 0.75rem;
-                        spacing: 0.4rem;
-                        HText { text: Tr.t("log-title"); font-size: 1.125rem; }
+                        padding: 1.25rem;
+                        spacing: 0.6rem;
+                        SectionHead { text: Tr.t("log-title"); }
                         HorizontalLayout {
                             spacing: 0.75rem;
-                            HText { text: Tr.t("log-col-time"); width: 4rem; }
-                            HText { text: Tr.t("log-col-player"); width: 8rem; }
-                            HText { text: Tr.t("log-col-item"); horizontal-stretch: 1; }
-                            HText { text: Tr.t("log-col-action"); width: 6.5rem; }
-                        }
-                        Rectangle { height: 1px; background: Theme.text; }
-                        if AppState.log-rows.length == 0: IconText { kind: IconKind.empty; text: Tr.t("log-empty"); }
-                        for row in AppState.log-rows: HorizontalLayout {
-                            spacing: 0.75rem;
-                            BText { text: row.time; width: 4rem; }
-                            BText { text: row.player; width: 8rem; }
-                            BText { text: row.item; horizontal-stretch: 1; }
+                            // The time column header is a price-tag stamp.
                             HorizontalLayout {
-                                width: 6.5rem;
-                                spacing: 0.4rem;
+                                width: 5rem;
                                 alignment: start;
-                                Icon {
-                                    kind: row.action == LogAction.buy ? IconKind.plus : row.action == LogAction.sell ? IconKind.minus : IconKind.up;
-                                    size: 0.9rem;
-                                    y: 0.1rem;
-                                }
-                                BText { text: row.action-label; }
+                                Stamp { text: Tr.t("log-col-time"); height: 2rem; }
                             }
+                            HText { text: Tr.t("log-col-player"); font-weight: 700; color: Theme.paper-muted; width: 8rem; }
+                            HText { text: Tr.t("log-col-item"); font-weight: 700; color: Theme.paper-muted; horizontal-stretch: 1; }
+                            HText { text: Tr.t("log-col-action"); font-weight: 700; color: Theme.paper-muted; width: 6.5rem; }
+                        }
+                        Divider { }
+                        if AppState.log-rows.length == 0: IconText { kind: IconKind.empty; text: Tr.t("log-empty"); }
+                        for row in AppState.log-rows: VerticalLayout {
+                            spacing: 0.5rem;
+                            HorizontalLayout {
+                                spacing: 0.75rem;
+                                BText { text: row.time; width: 5rem; vertical-alignment: center; }
+                                BText { text: row.player; width: 8rem; vertical-alignment: center; wrap: no-wrap; overflow: elide; }
+                                ItemLine { chip: row.item; horizontal-stretch: 1; preferred-width: 1px; }
+                                HorizontalLayout {
+                                    width: 6.5rem;
+                                    spacing: 0.4rem;
+                                    alignment: start;
+                                    Icon {
+                                        kind: row.action == LogAction.buy ? IconKind.plus : row.action == LogAction.sell ? IconKind.minus : IconKind.up;
+                                        size: 0.9rem;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                    BText { text: row.action-label; vertical-alignment: center; }
+                                }
+                            }
+                            Divider { }
                         }
                     }
                 }

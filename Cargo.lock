@@ -3782,6 +3782,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "num_threads"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cabcc654086861f9e1bc5115258de62ef92c79b20f4615a1b0cc57c4e82027d4"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "objc-sys"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5859,13 +5868,19 @@ name = "stalemate-app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "dirs",
  "fluent-bundle",
  "i-slint-backend-testing",
+ "png",
  "regex",
+ "serde_json",
  "slint",
  "slint-build",
  "stalemate-core",
+ "tempfile",
+ "time",
  "tokio",
+ "tracing",
  "unic-langid",
 ]
 
@@ -5906,12 +5921,24 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
+ "windows-registry",
+ "windows-sys 0.61.2",
  "wiremock",
+ "zip",
 ]
 
 [[package]]
 name = "stalemate-fixture-recorder"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "reqwest 0.13.5",
+ "serde",
+ "serde_json",
+ "stalemate-core",
+ "tempfile",
+ "tokio",
+]
 
 [[package]]
 name = "stalemate-model-trainer"
@@ -6136,7 +6163,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb87b95ec50ddfa440816d227a17b2ccbdda963a316a727fda0fc4334f7d134"
 dependencies = [
  "deranged",
+ "libc",
  "num-conv",
+ "num_threads",
  "powerfmt",
  "serde_core",
  "time-core",
@@ -6467,6 +6496,12 @@ dependencies = [
  "bincode",
  "serde",
 ]
+
+[[package]]
+name = "typed-path"
+version = "0.12.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54ec2755506471f54baf5e4bb5499d8e510cc1caf271270e778a736bd2d7336c"
 
 [[package]]
 name = "typenum"
@@ -7244,6 +7279,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "windows-registry"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02752bf7fbdcce7f2a27a742f798510f3e5ad88dbe84871e5168e2120c3d5720"
+dependencies = [
+ "windows-link",
+ "windows-result",
+ "windows-strings",
+]
+
+[[package]]
 name = "windows-result"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7982,6 +8028,19 @@ dependencies = [
  "quote",
  "syn 3.0.9",
  "zbus_utils",
+]
+
+[[package]]
+name = "zip"
+version = "8.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d04a6b5381502aa6087c94c669499eb1602eb9c5e8198e534de571f7154809b"
+dependencies = [
+ "crc32fast",
+ "flate2",
+ "indexmap",
+ "memchr",
+ "typed-path",
 ]
 
 [[package]]

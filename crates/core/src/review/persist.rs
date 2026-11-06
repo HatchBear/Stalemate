@@ -48,6 +48,12 @@ fn snake_case_mode(s: &str) -> String {
     out
 }
 
+/// API-05 mode to the typed column. Anything that cannot be normalised to a valid lowercase
+/// snake_case name (empty, non-ASCII) is stored under the fixed name `unknown`.
+fn game_mode(s: &str) -> GameMode {
+    GameMode::parse(&snake_case_mode(s)).unwrap_or_else(|_| GameMode::Other("unknown".into()))
+}
+
 /// Write the `matches` and `match_players` rows and, for Standard matches, the `reviews` row and
 /// the R-02 finding. Safe to call again for the same match: nothing is duplicated.
 /// `patch` is the game patch label the caller knows for this match.
@@ -77,8 +83,7 @@ pub fn persist_stats_review(
         match_id: meta.match_id,
         started_at: started_at(&meta.start_time),
         duration_s: Some(meta.duration_s),
-        // Placeholder for the typed column; the API's real mode is written right after the insert.
-        game_mode: GameMode::Normal,
+        game_mode: game_mode(&meta.game_mode),
         match_mode: Some(meta.match_mode.to_lowercase()).filter(|s| !s.is_empty()),
         patch: patch.to_string(),
         user_team: team(&user.team)?,
@@ -93,15 +98,6 @@ pub fn persist_stats_review(
         recording_path: None,
     };
     storage.insert_match(&row, &players)?;
-    // `GameMode` only knows two modes, but the column is free text: store what the API said.
-    let mode = snake_case_mode(&meta.game_mode);
-    let mid = meta.match_id as i64;
-    storage.with_conn(|c| {
-        c.execute(
-            "UPDATE matches SET game_mode = ?1 WHERE match_id = ?2",
-            params![mode, mid],
-        )
-    })?;
     if !review.standard_mode {
         // A non-Standard match may have a review from an earlier run; none is kept now.
         let id = meta.match_id as i64;

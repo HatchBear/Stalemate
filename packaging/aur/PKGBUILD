@@ -1,0 +1,46 @@
+# Maintainer: HatchBear <noreply@users.noreply.github.com>
+# Source build of Stalemate from the tagged GitHub tarball (T-004a, DEC-064).
+#
+# sha256sums is SKIP in the repository because the tag's tarball does not exist yet.
+# scripts/aur-update.sh (run by the release workflow) writes the real checksum and the
+# new pkgver, and uploads the result as an artifact. Never publish this file with SKIP.
+pkgname=stalemate
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Companion app for Deadlock: scouting, live recommendations, post-match review'
+arch=('x86_64')
+url='https://github.com/HatchBear/Stalemate'
+license=('GPL-3.0-or-later')
+# Slint opens the Wayland, X11, xkbcommon and GL libraries at run time, so makepkg
+# cannot detect them. They are listed by hand.
+depends=('gcc-libs' 'glibc' 'fontconfig' 'freetype2' 'libxkbcommon' 'libxkbcommon-x11'
+         'wayland' 'libx11' 'libxcb' 'libxcursor' 'libxi' 'libglvnd' 'dbus' 'ca-certificates')
+makedepends=('rust' 'cargo' 'cmake' 'pkgconf' 'protobuf' 'clang')
+# makepkg's default -flto in CFLAGS makes aws-lc-sys build LTO objects that rust's linker
+# (lld) cannot resolve, so LTO is off for the C code.
+options=('!lto')
+optdepends=('gnome-keyring: store the API key in the Secret Service'
+            'kwallet: store the API key in the Secret Service')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP') # replaced by scripts/aur-update.sh at release time
+
+prepare() {
+  cd "Stalemate-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "Stalemate-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  # Main window only. The overlay is Beta (DEC-063).
+  cargo build --release --frozen -p stalemate-app
+}
+
+package() {
+  cd "Stalemate-$pkgver"
+  # One install layout for every native package: scripts/package-linux.sh stage.
+  PACKAGE_FORMAT=aur bash scripts/package-linux.sh stage "$pkgdir" target/release/stalemate
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

@@ -5,9 +5,15 @@
 export enum Check { pending, pass, fail }
 export enum DataKind { loaded, loading, empty, stale, error }
 export enum TeamSide { amber, sapphire }
-export enum CardKind { data, no-public-data, loading, hero-only }
+export enum CardKind { data, no-public-data, loading, hero-only, unavailable }
 export enum LogAction { buy, sell, upgrade }
-export enum SoulKind { lane-troopers, neutral-camps, breakables, urn, sinners-sacrifice }
+export enum SoulKind { lane-troopers, neutral-camps, breakables, urn, sinners-sacrifice, other }
+// Win, Loss, Abandoned, or no result (unknown or missing). Neither of the last two is a loss.
+export enum MatchOutcome { win, loss, abandoned, none }
+// Shop category of an item (DEC-068): Weapon, Vitality, Spirit. `none` when the catalog has no slot.
+export enum ItemCategory { none, weapon, vitality, spirit }
+// What the Save diagnostics button produced.
+export enum DiagResult { none, saved, leak, failed }
 export enum BuildsTab { library, community, builder }
 
 export struct StateUi {
@@ -24,7 +30,7 @@ export struct CheckUi {
 
 export struct LastMatchUi {
     has-match: bool,
-    won: bool,
+    outcome: MatchOutcome,
     headline: string,
     detail: string,
 }
@@ -48,26 +54,56 @@ export struct ScoutCardUi {
     mains: [MainHeroUi],
 }
 
+// An item as a chip: its category colour and icon, its name, and the category name for screen
+// readers. Art loads at runtime; `has-icon` is false until the cache has it.
+export struct ItemChipUi {
+    name: string,
+    category: ItemCategory,
+    category-label: string,
+    icon: image,
+    has-icon: bool,
+}
+
+// One row of chips, for the layouts that show items in rows.
+export struct ChipRowUi {
+    chips: [ItemChipUi],
+}
+
+export struct SectionUi {
+    title: string,
+    items: [ItemChipUi],
+    rows: [ChipRowUi],
+}
+
 export struct EnemyRowUi {
     hero: string,
+    initial: string,
+    portrait: image,
+    has-portrait: bool,
     name: string,
-    items-text: string,
-    item-icons: [image],
+    side: TeamSide,
+    side-label: string,
+    item-rows: [ChipRowUi],
+    items-none: string,
+    has-items: bool,
     kda: string,
     level: string,
+    souls: string,
 }
 
 export struct LogRowUi {
     time: string,
     player: string,
-    item: string,
+    item: ItemChipUi,
     action: LogAction,
     action-label: string,
 }
 
 export struct ReviewRowUi {
     title: string,
-    won: bool,
+    outcome: MatchOutcome,
+    // True when the match is saved but its Review isn't ready yet.
+    pending: bool,
     meta: string,
 }
 
@@ -79,7 +115,7 @@ export struct SoulRowUi {
 
 export struct ReportUi {
     has-report: bool,
-    won: bool,
+    outcome: MatchOutcome,
     headline: string,
     duration: string,
     lane-title: string,
@@ -96,22 +132,26 @@ export struct BuildRowUi {
     meta: string,
     active: bool,
     flag: string,
+    // How many items per category, as chips with the category name ("Weapon 5").
+    mix: [ItemChipUi],
+    sections: [SectionUi],
 }
 
 export struct CommunityRowUi {
     name: string,
     hero: string,
     usage: string,
-}
-
-export struct SectionUi {
-    title: string,
-    items: [string],
+    mix: [ItemChipUi],
+    sections: [SectionUi],
 }
 
 export global Tr {
     // Looks a key up in i18n/en-US/main.ftl. Missing keys return the key itself.
     pure callback t(string) -> string;
+    // Upper-cases a string for display headings (Barlow Condensed).
+    pure callback upper(string) -> string;
+    // The first letter of a name, upper-cased, for the stand-in portrait.
+    pure callback initial(string) -> string;
 }
 
 export global AppState {
@@ -129,6 +169,10 @@ export global AppState {
     in property <Check> setup-result: Check.pending;
     in property <string> setup-result-detail;
     callback check-again();
+    // Where the app is in a match, as text, and the manual "Watch match" entry (FR-DATA-007).
+    in property <string> phase-text;
+    in property <string> watch-error;
+    callback watch-match(string);
 
     // Scouting (FP-10: cards only after the game has started)
     in property <bool> scouting-visible: false;
@@ -146,20 +190,28 @@ export global AppState {
     in property <bool> delay-stale: false;
     in property <bool> show-kda: false;
     in property <bool> show-level: false;
+    in property <bool> show-souls: false;
+    in property <string> enemy-board-heading;
     in property <[EnemyRowUi]> enemy-rows;
     in property <[LogRowUi]> log-rows;
 
     // Reviews
     in property <StateUi> reviews-state: { kind: DataKind.loaded, message: "" };
     in property <[ReviewRowUi]> review-rows;
+    // "3 matches", shown on a price-tag stamp.
+    in property <string> review-count-text;
     in-out property <int> selected-review: -1;
     in property <ReportUi> report;
     callback select-review(int);
+    in property <bool> selected-pending: false;
+    callback retry-review(int);
 
     // Builds
     in-out property <BuildsTab> builds-tab: BuildsTab.library;
     in property <StateUi> builds-state: { kind: DataKind.loaded, message: "" };
     in property <[BuildRowUi]> library;
+    // "3 builds", shown on a price-tag stamp.
+    in property <string> library-count-text;
     callback set-active(string);
     in property <[string]> heroes;
     in-out property <int> import-hero: 0;
@@ -172,7 +224,7 @@ export global AppState {
     in property <[SectionUi]> builder-sections;
     in-out property <int> builder-target: 0;
     in-out property <string> builder-ability;
-    in property <[string]> builder-results;
+    in property <[ItemChipUi]> builder-results;
     in property <string> builder-error;
     callback builder-search(string);
     callback builder-add-section();
@@ -182,16 +234,41 @@ export global AppState {
     callback builder-remove-item(int, int);
     callback builder-save();
 
-    // Settings
+    // Settings. The nav's sub-items jump to a section: `settings-section` is the one picked last,
+    // and `settings-jump` counts the picks, so picking the same one again scrolls again.
+    in-out property <int> settings-section: 0;
+    in-out property <int> settings-jump: 0;
     in-out property <string> account-id;
     in property <string> account-id-error;
     in property <string> version-text;
     callback save-account-id(string);
     callback set-text-scale(int);
 
+    // Alpha diagnostics (FR-SET-005, DEC-070). Nothing is uploaded: the tester saves one file.
+    in-out property <bool> diag-enabled: true;
+    callback set-diag-enabled(bool);
+    // The save panel: a preview of what is kept, a note and the Account ID choice.
+    in-out property <bool> diag-save-open: false;
+    in property <[string]> diag-preview;
+    in-out property <string> diag-note;
+    in-out property <bool> diag-include-id: false;
+    callback open-diag-save();
+    callback close-diag-save();
+    callback save-diag(string, bool);
+    in property <DiagResult> diag-result: DiagResult.none;
+    in property <string> diag-result-text;
+    in property <string> diag-folder;
+    callback open-diag-folder();
+    // "Mark a problem" on Home and Live: a one-line note with a time stamp.
+    in property <string> mark-confirm;
+    callback mark-problem(string);
+    // Views opened, for the diagnostics counts.
+    callback view-opened(int);
+
     // Shared
     callback retry(int);
     callback demo-cycle-state();
     callback demo-toggle-offline();
-    in property <string> demo-state-text;
+    // One label per view (indexed by current-view), so the footer always describes the view on screen.
+    in property <[string]> demo-state-texts;
 }

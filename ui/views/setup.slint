@@ -1,51 +1,60 @@
+import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { Icon, IconKind } from "../icons.slint";
 import { AppState, Tr, Check } from "../types.slint";
-import { HText, BText, Panel, Btn } from "../widgets.slint";
-import { CheckIcon } from "home.slint";
+import { HText, BText, DText, PaperPanel, SectionHead, Divider, Stamp, CheckStamp, Panel, Btn } from "../widgets.slint";
 
 // First-run setup (FR-SET-003): explains the -condebug launch option, then checks it.
 export component SetupPanel inherits Rectangle {
-    background: Theme.base.with-alpha(0.8);
+    background: Theme.edge.with-alpha(0.85);
     // Swallow clicks behind the dialog.
     TouchArea { }
-    Panel {
-        width: min(parent.width - 2rem, 40rem);
-        height: min(parent.height - 2rem, 30rem);
+    PaperPanel {
+        width: min(parent.width - 2rem, 42rem);
+        height: min(parent.height - 2rem, 40rem);
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        background: Theme.base;
-        VerticalLayout {
-            padding: 1.25rem;
-            spacing: 0.75rem;
-            HText { text: Tr.t("setup-title"); font-size: 1.375rem; }
-            BText { text: Tr.t("setup-intro"); }
-            HText { text: Tr.t("setup-steps-title"); }
-            BText { text: Tr.t("setup-step-1"); }
-            BText { text: Tr.t("setup-step-2"); }
-            BText { text: Tr.t("setup-step-3"); }
-            BText { text: Tr.t("setup-step-4"); }
-            HorizontalLayout {
-                spacing: 0.75rem;
-                alignment: start;
-                Btn { label: Tr.t("setup-check-again"); clicked => { AppState.check-again(); } }
-                Btn { label: Tr.t("setup-close"); clicked => { AppState.setup-open = false; } }
-            }
-            Panel {
+        ScrollView {
+            VerticalLayout {
+                padding: 1.5rem;
+                spacing: 0.7rem;
+                SectionHead { text: Tr.t("setup-title"); }
+                BText { text: Tr.t("setup-intro"); }
+                HText { text: Tr.t("setup-steps-title"); font-weight: 600; }
+                // Section numbers are price-tag stamps.
+                for n in [1, 2, 3, 4]: HorizontalLayout {
+                    spacing: 0.75rem;
+                    Stamp { text: n; tilt: n == 2 || n == 4 ? 1.5deg : -1.5deg; y: 0; }
+                    BText { text: Tr.t("setup-step-" + n); horizontal-stretch: 1; preferred-width: 1px; vertical-alignment: center; }
+                }
+                HorizontalLayout {
+                    spacing: 0.75rem;
+                    alignment: start;
+                    Btn { primary: true; label: Tr.t("setup-check-again"); clicked => { AppState.check-again(); } }
+                    Btn { label: Tr.t("setup-close"); clicked => { AppState.setup-open = false; } }
+                }
+                Divider { }
                 VerticalLayout {
-                    padding: 0.75rem;
                     spacing: 0.25rem;
                     HorizontalLayout {
                         spacing: 0.5rem;
-                        CheckIcon { state: AppState.setup-result; y: 0; }
+                        CheckStamp { state: AppState.setup-result; y: 0; }
                         HText {
+                            horizontal-stretch: 1;
+                            preferred-width: 1px;
+                            vertical-alignment: center;
                             text: AppState.setup-result == Check.pass ? Tr.t("setup-result-pass") : AppState.setup-result == Check.fail ? Tr.t("setup-result-fail") : Tr.t("setup-result-pending");
+                            font-weight: 600;
                         }
                     }
-                    if AppState.setup-result-detail != "": BText { text: AppState.setup-result-detail; }
+                    if AppState.setup-result-detail != "": BText { text: AppState.setup-result-detail; color: Theme.paper-muted; }
                 }
+                Divider { }
+                // What the Alpha keeps, and that nothing is uploaded (FR-SET-005).
+                HText { text: Tr.t("setup-diag-title"); font-weight: 600; }
+                BText { text: Tr.t("setup-diag-body"); color: Theme.paper-muted; }
+                Rectangle { vertical-stretch: 1; }
             }
-            Rectangle { vertical-stretch: 1; }
         }
     }
 }

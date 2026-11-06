@@ -172,7 +172,7 @@ pub fn candidate_roots(home: &std::path::Path) -> Vec<std::path::PathBuf> {
 //     pick the user with MostRecent == "1" -> account_id_from_steamid64
 //     read root/steamapps/libraryfolders.vdf -> library paths
 // for lib in libraries: if lib/steamapps/common/Deadlock exists -> deadlock_dir
-// console_log = deadlock_dir/game/citadel/console.log   // VERIFY (OQ-03)
+// console_log = deadlock_dir/game/citadel/console.log   // verified on native Steam (DEC-062)
 ```
 
 | Test | Case | Expected |

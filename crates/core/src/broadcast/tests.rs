@@ -705,3 +705,21 @@ async fn tc_04_1_recorded_fixture_gives_the_golden_events() {
         eprintln!("TC-04-1 skipped: no fixture with a relay/ folder (blocked on T-013)");
     }
 }
+
+#[tokio::test(start_paused = true)]
+async fn stats_count_stream_and_connect_errors_across_reconnects() {
+    // One session that drops after two fragments, then the script runs out: every later connect
+    // is refused until `Lost` (5 retries, 6 refused attempts in all after the drop).
+    let conn = Arc::new(MockConnector::new(vec![Attempt::Serve {
+        from: 1,
+        to: 2,
+        then: Ending::Drop,
+    }]));
+    let loc = Arc::new(FixedLocator::default());
+    let (tx, mut rx) = mpsc::channel(1024);
+    let (h, stats) = spawn_with_stats(1, deps(conn, loc, None), tx);
+    while rx.recv().await.is_some() {}
+    assert_eq!(h.await.unwrap(), BroadcastOutcome::Lost);
+    assert_eq!(stats.fragment_errors(), 1);
+    assert_eq!(stats.connect_errors(), 5);
+}

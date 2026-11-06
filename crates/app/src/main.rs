@@ -1,12 +1,17 @@
-//! The `stalemate` binary (PRG-20). This shell renders view models. Until the core is wired in
-//! (a later task), `--demo` fills them with made-up data.
+//! The `stalemate` binary (PRG-20). It renders view models from the real pipeline (`runtime`).
+//! `--demo` fills them with made-up data instead.
 
 mod builder;
 mod demo;
+mod diag;
 mod i18n;
+mod runtime;
+#[cfg(test)]
+mod screenshots;
 mod ui;
 mod ui_map;
 mod view_model;
+mod vm_build;
 
 use anyhow::{bail, Result};
 use slint::ComponentHandle;
@@ -18,6 +23,8 @@ use ui::{AppState, MainWindow};
 #[derive(Default, Debug)]
 struct Args {
     demo: bool,
+    /// Print `stalemate <version> (<package format>)` and exit (TST-094).
+    version: bool,
     first_run: bool,
     reduce_motion: bool,
     /// Developer aid: render each scenario to a PPM file in this folder, then exit.
@@ -35,6 +42,7 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Args> {
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--demo" => out.demo = true,
+            "--version" | "-V" => out.version = true,
             "--first-run" => out.first_run = true,
             "--reduce-motion" => out.reduce_motion = true,
             "--snapshot-dir" => out.snapshot_dir = args.next().map(Into::into),
@@ -46,9 +54,30 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Args> {
 }
 
 fn main() -> Result<()> {
+    // The local UTC offset must be read before any thread starts (the tokio runtime, the logger,
+    // the window). On Linux the call fails once the process is multithreaded.
+    let utc_offset = time::UtcOffset::current_local_offset();
     let args = parse_args(std::env::args().skip(1))?;
+    // Detected paths, for the package format and the log folder. A failure only costs those.
+    let paths = stalemate_core::settings::Paths::detect().ok();
+    if args.version {
+        println!(
+            "{}",
+            diag::version_line(paths.as_ref().map(|p| p.shipped_config_dir.as_path()))
+        );
+        return Ok(());
+    }
+    if !args.demo && args.snapshot_dir.is_none() {
+        if let Some(p) = &paths {
+            diag::install_logging(&p.data_dir);
+        }
+    }
+    let utc_offset = utc_offset.unwrap_or_else(|e| {
+        tracing::warn!("could not read the local time zone, using UTC for log-line times: {e}");
+        time::UtcOffset::UTC
+    });
     let i18n = Arc::new(i18n::I18n::en_us());
-    let window = MainWindow::new()?;
+    let window = create_window(paths.as_ref().map(|p| p.data_dir.as_path()))?;
     ui_map::install_strings(&window, i18n.clone());
 
     let state = window.global::<AppState>();
@@ -59,20 +88,23 @@ fn main() -> Result<()> {
         .global::<ui::Theme>()
         .set_motion(if args.reduce_motion { 0 } else { 120 });
 
+    let runtime;
     if args.demo {
+        runtime = None::<runtime::Runtime>;
         let controller = Rc::new(RefCell::new(demo::Demo::new(i18n)));
         demo::wire(&window, controller.clone());
         demo::initial_apply(&window, &controller.borrow());
     } else {
-        // Core wiring comes later. Until then, show the empty state of every view.
+        // The empty state shows until the core has loaded; then it pushes the real view models.
         let vm = view_model::AppVm {
             settings: view_model::SettingsVm {
-                account_id: None,
                 version: env!("CARGO_PKG_VERSION").into(),
+                ..Default::default()
             },
             ..Default::default()
         };
         ui_map::apply_all(&window, &vm, &i18n);
+        runtime = Some(runtime::start(&window, utc_offset)?);
     }
 
     if let Some(ms) = args.quit_after_ms {
@@ -91,7 +123,97 @@ fn main() -> Result<()> {
     }
 
     window.run()?;
+    drop(runtime);
     Ok(())
+}
+
+/// Set while the app runs again after a start-up panic in the font system.
+#[cfg(target_os = "linux")]
+const FONT_RETRY_VAR: &str = "STALEMATE_FONT_RETRY";
+
+/// Creates the main window, and survives a system with no fonts at all (a bare container).
+///
+/// Slint asks fontconfig for the system's fonts while it starts. With none installed, `fontique`
+/// 0.11 (inside Slint 1.18) unwraps a `NoMatch` error in `SystemFonts::new`
+/// (`fontique/src/backend/fontconfig.rs`, line 685) and the app panics before any window exists.
+/// Slint has no switch to skip the system fonts, and after that panic it cannot start again in the
+/// same process ("platform initialized in another thread"). So the panic is caught here, and on
+/// Linux the app starts itself again with `FONTCONFIG_FILE` pointing at a small config of its own
+/// that lists one bundled font (Jost, SIL OFL). The UI's own fonts (Jost, Noto Sans, Barlow
+/// Condensed) are embedded in the binary and load either way.
+fn create_window(data_dir: Option<&std::path::Path>) -> Result<MainWindow> {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    static FROM_FONTS: AtomicBool = AtomicBool::new(false);
+    // The first attempt's panic is expected; keep it out of the terminal and note it in the log.
+    let hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|info| {
+        let in_fonts = info
+            .location()
+            .is_some_and(|l| l.file().contains("fontique"));
+        FROM_FONTS.store(in_fonts, Ordering::SeqCst);
+        tracing::warn!("panic while starting the window: {info}");
+    }));
+    let first = std::panic::catch_unwind(MainWindow::new);
+    std::panic::set_hook(hook);
+    match first {
+        Ok(window) => Ok(window?),
+        // Any other panic is a real bug: let it through.
+        Err(payload) if !FROM_FONTS.load(Ordering::SeqCst) => std::panic::resume_unwind(payload),
+        Err(_) => {
+            tracing::warn!(
+                "no system fonts (fontique NoMatch, fontconfig.rs:685): starting again with a bundled fallback font"
+            );
+            restart_with_fallback_font(data_dir)
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn restart_with_fallback_font(data_dir: Option<&std::path::Path>) -> Result<MainWindow> {
+    use std::os::unix::process::CommandExt;
+    if std::env::var_os(FONT_RETRY_VAR).is_some() {
+        bail!("the window could not start: the font system failed even with the fallback font");
+    }
+    let base = data_dir
+        .map(|d| d.join("fallback-fonts"))
+        .unwrap_or_else(|| std::env::temp_dir().join("stalemate-fallback-fonts"));
+    let conf = fallback_fontconfig(&base)?;
+    // `exec` only returns when it failed.
+    let err = std::process::Command::new(std::env::current_exe()?)
+        .args(std::env::args_os().skip(1))
+        .env("FONTCONFIG_FILE", conf)
+        .env(FONT_RETRY_VAR, "1")
+        .exec();
+    bail!("the window could not start, and starting again failed: {err}")
+}
+
+#[cfg(not(target_os = "linux"))]
+fn restart_with_fallback_font(_: Option<&std::path::Path>) -> Result<MainWindow> {
+    bail!("the window could not start: the font system failed")
+}
+
+/// Jost, the one font the fallback config lists.
+#[cfg(any(target_os = "linux", test))]
+const FALLBACK_FONT: &[u8] = include_bytes!("../../../assets/fonts/jost/Jost-Variable.ttf");
+
+/// Writes the fallback font and a minimal fontconfig file under `base`; returns the file's path.
+#[cfg(any(target_os = "linux", test))]
+fn fallback_fontconfig(base: &std::path::Path) -> Result<std::path::PathBuf> {
+    let fonts = base.join("fonts");
+    let cache = base.join("cache");
+    std::fs::create_dir_all(&fonts)?;
+    std::fs::create_dir_all(&cache)?;
+    std::fs::write(fonts.join("Jost-Variable.ttf"), FALLBACK_FONT)?;
+    let conf = base.join("fonts.conf");
+    std::fs::write(
+        &conf,
+        format!(
+            "<?xml version=\"1.0\"?>\n<!DOCTYPE fontconfig SYSTEM \"fonts.dtd\">\n<fontconfig>\n  <dir>{}</dir>\n  <cachedir>{}</cachedir>\n</fontconfig>\n",
+            fonts.display(),
+            cache.display()
+        ),
+    )?;
+    Ok(conf)
 }
 
 /// Developer aid for checking the look without a person at the screen.
@@ -183,7 +305,25 @@ mod tests {
     #[test]
     fn args_parse() {
         let a = parse_args(["--demo", "--first-run"].into_iter().map(String::from)).unwrap();
-        assert!(a.demo && a.first_run);
+        assert!(a.demo && a.first_run && !a.version);
+        let v = parse_args(["--version"].into_iter().map(String::from)).unwrap();
+        assert!(v.version);
         assert!(parse_args(["--nope"].into_iter().map(String::from)).is_err());
+    }
+
+    #[test]
+    fn fallback_fontconfig_lists_one_bundled_font() {
+        let dir = std::env::temp_dir().join(format!("stalemate-fonts-test-{}", std::process::id()));
+        let conf = fallback_fontconfig(&dir).unwrap();
+        let text = std::fs::read_to_string(&conf).unwrap();
+        assert!(text.contains("<dir>") && text.contains("<cachedir>"));
+        assert!(
+            dir.join("fonts/Jost-Variable.ttf")
+                .metadata()
+                .unwrap()
+                .len()
+                > 10_000
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

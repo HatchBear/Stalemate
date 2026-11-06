@@ -21,7 +21,10 @@ pub mod types;
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
-    sync::{Mutex, RwLock},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Mutex, RwLock,
+    },
     time::Duration,
 };
 
@@ -276,6 +279,7 @@ pub struct ApiClient {
     patch: RwLock<Option<String>>,
     blocked: Mutex<HashMap<String, Block>>,
     no_data: Mutex<HashSet<String>>,
+    rate_limit_waits: AtomicU64,
 }
 
 impl ApiClient {
@@ -309,11 +313,24 @@ impl ApiClient {
             patch: RwLock::new(None),
             blocked: Mutex::new(HashMap::new()),
             no_data: Mutex::new(HashSet::new()),
+            rate_limit_waits: AtomicU64::new(0),
         })
     }
 
     pub fn base_url(&self) -> &str {
         &self.base_url
+    }
+
+    /// Cumulative count, since this client was made, of times a request was held back by rate
+    /// limiting: it waited for a token bucket, was refused because the same query was cooling down
+    /// after a `Retry-After`/504, was refused by the per-match locator budget, or the server answered
+    /// 429/503/504. A request counts once per cause. Cheap; for diagnostics (FR-SET-005).
+    pub fn rate_limit_waits(&self) -> u64 {
+        self.rate_limit_waits.load(Ordering::Relaxed)
+    }
+
+    fn count_wait(&self) {
+        self.rate_limit_waits.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn storage(&self) -> &Storage {
@@ -373,6 +390,7 @@ impl ApiClient {
         {
             let now = self.clock.now();
             if now < b.until {
+                self.count_wait();
                 let left = Duration::from(b.until.saturating_sub(now));
                 return Err(ApiError::Busy {
                     retry_after_s: left.as_secs() + u64::from(left.subsec_nanos() > 0),
@@ -384,13 +402,16 @@ impl ApiClient {
         if spec.scope == Scope::LiveUrl {
             // Honour the hourly budget without sleeping through it.
             if let Err(wait) = self.buckets.get(spec.scope).try_acquire() {
+                self.count_wait();
                 return Err(ApiError::Busy {
                     retry_after_s: wait.as_secs() + u64::from(wait.subsec_nanos() > 0),
                     timeout: false,
                 });
             }
         } else {
-            self.buckets.get(spec.scope).acquire().await;
+            if self.buckets.get(spec.scope).acquire().await {
+                self.count_wait();
+            }
         }
 
         // reqwest's `query` helper is behind a feature this crate doesn't enable; build the URL here.
@@ -422,6 +443,7 @@ impl ApiClient {
                 Err(ApiError::NoPublicData)
             }
             503 | 429 => {
+                self.count_wait();
                 self.block(&key, retry_after, false);
                 Err(ApiError::Busy {
                     retry_after_s: retry_after,
@@ -429,6 +451,7 @@ impl ApiClient {
                 })
             }
             504 => {
+                self.count_wait();
                 // No same-query retry for the cooldown, even when Retry-After says less.
                 let wait = retry_after.max(self.rules.timeout_cooldown_s);
                 self.block(&key, wait, true);

@@ -2,40 +2,68 @@ import { ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { Icon, IconKind } from "../icons.slint";
 import { AppState, Tr, Check } from "../types.slint";
-import { HText, BText, Panel, Btn, ViewFrame } from "../widgets.slint";
-
-export component CheckIcon inherits Icon {
-    in property <Check> state;
-    kind: state == Check.pass ? IconKind.pass : state == Check.fail ? IconKind.fail : IconKind.pending;
-    tint: state == Check.fail ? Theme.warn : Theme.text;
-}
+import { HText, BText, DText, PageTitle, PaperPanel, SectionHead, Divider, CheckStamp, OutcomeStamp, Btn, TextBox, ViewFrame, IconText, MarkProblem } from "../widgets.slint";
 
 export component HomeView inherits ViewFrame {
     ScrollView {
         VerticalLayout {
-            padding: 1rem;
-            spacing: 1rem;
+            padding: 1.5rem;
+            padding-top: 1rem;
+            spacing: 1.5rem;
             alignment: start;
-            HText { text: Tr.t("home-title"); font-size: 1.5rem; }
+            PageTitle { text: Tr.t("home-title"); }
 
-            Panel {
+            PaperPanel {
                 VerticalLayout {
-                    padding: 1rem;
-                    spacing: 0.6rem;
-                    HText { text: Tr.t("home-checks-title"); font-size: 1.125rem; }
-                    for check in AppState.checks: HorizontalLayout {
+                    padding: 1.25rem;
+                    spacing: 0.75rem;
+                    SectionHead { text: Tr.t("home-status-title"); }
+                    HorizontalLayout {
                         spacing: 0.75rem;
-                        CheckIcon { state: check.state; y: 0; }
-                        VerticalLayout {
+                        Icon { kind: IconKind.info; y: 0.1rem; }
+                        HText { text: AppState.phase-text; font-size: 1.125rem; }
+                    }
+                    MarkProblem { }
+                }
+            }
+
+            PaperPanel {
+                VerticalLayout {
+                    padding: 1.25rem;
+                    spacing: 0.75rem;
+                    SectionHead { text: Tr.t("watch-title"); }
+                    BText { text: Tr.t("watch-help"); color: Theme.paper-muted; }
+                    HorizontalLayout {
+                        spacing: 0.75rem;
+                        watch-box := TextBox {
+                            placeholder: Tr.t("watch-placeholder");
+                            label: Tr.t("watch-title");
                             horizontal-stretch: 1;
-                            HText { text: check.label; }
-                            if check.detail != "": BText { text: check.detail; }
+                            accepted(t) => { AppState.watch-match(t); }
                         }
-                        HText {
-                            text: check.state == Check.pass ? Tr.t("check-pass") : check.state == Check.fail ? Tr.t("check-fail") : Tr.t("check-pending");
-                            horizontal-alignment: right;
-                            min-width: 4.5rem;
+                        Btn { primary: true; label: Tr.t("watch-button"); clicked => { AppState.watch-match(watch-box.text); } }
+                    }
+                    if AppState.watch-error != "": IconText { kind: IconKind.fail; text: AppState.watch-error; }
+                }
+            }
+
+            PaperPanel {
+                VerticalLayout {
+                    padding: 1.25rem;
+                    spacing: 0.7rem;
+                    SectionHead { text: Tr.t("home-checks-title"); }
+                    for check in AppState.checks: VerticalLayout {
+                        spacing: 0.6rem;
+                        HorizontalLayout {
+                            spacing: 0.75rem;
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                HText { text: check.label; font-weight: 600; }
+                                if check.detail != "": BText { text: check.detail; color: Theme.paper-muted; }
+                            }
+                            CheckStamp { y: 0; state: check.state; }
                         }
+                        Divider { }
                     }
                     HorizontalLayout {
                         alignment: start;
@@ -44,21 +72,19 @@ export component HomeView inherits ViewFrame {
                 }
             }
 
-            Panel {
+            PaperPanel {
                 VerticalLayout {
-                    padding: 1rem;
-                    spacing: 0.5rem;
-                    HText { text: Tr.t("home-last-match-title"); font-size: 1.125rem; }
+                    padding: 1.25rem;
+                    spacing: 0.75rem;
+                    SectionHead { text: Tr.t("home-last-match-title"); }
                     if AppState.last-match.has-match: HorizontalLayout {
-                        spacing: 0.75rem;
-                        Icon {
-                            kind: AppState.last-match.won ? IconKind.pass : IconKind.fail;
-                            y: 0;
-                        }
+                        spacing: 1rem;
                         VerticalLayout {
-                            HText { text: AppState.last-match.headline; }
-                            BText { text: AppState.last-match.detail; }
+                            horizontal-stretch: 1;
+                            HText { text: AppState.last-match.headline; font-size: 1.125rem; font-weight: 600; }
+                            BText { text: AppState.last-match.detail; color: Theme.paper-muted; }
                         }
+                        OutcomeStamp { outcome: AppState.last-match.outcome; y: 0; }
                     }
                     if !AppState.last-match.has-match: HorizontalLayout {
                         spacing: 0.75rem;
