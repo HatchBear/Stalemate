@@ -138,7 +138,7 @@ Within 24 h of a Deadlock patch [ASSUMPTION]:
 
 ### Beta field testing [ASSUMPTION]
 
-- At least 20 testers: at least 10 on KDE Plasma and at least 5 on Windows.
+- At least 20 testers: at least 10 on KDE Plasma and at least 5 on Windows. At least 2 must have ranked access, to check ranked-only behavior such as the pre-game swap phase (DEC-047).
 - In-app "report a problem" opens a prefilled GitHub issue with logs attached by the user (never automatically).
 - Severity: S1 crash or fair-play violation (fix before next release); S2 wrong recommendation or Review (fix within 2 releases); S3 cosmetic.
 

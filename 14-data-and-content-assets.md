@@ -50,7 +50,7 @@ backoff_s           = [2, 4, 8, 16, 32]
 stale_delay_s       = 120
 
 [scouting]
-swap_closed_after_s     = 0      # VERIFY (T-007): scouting stays hidden until game time passes this
+swap_closed_after_s     = 0      # scouting stays hidden until game time passes this. Raise it if a ranked tester finds the swap phase overlaps game time (DEC-047)
 history_window          = 20
 mmr_window              = 20
 build_sample_matches    = 30

@@ -59,7 +59,7 @@ Likelihood (L) and Impact (I): H = high, M = medium, L = low.
 | OQ-17 | Which `org.kde.Platform` branch and rust-stable extension branch should be used? | Flatpak build | [15](15-tools-build-and-deploy.md) |
 | OQ-18 | What's the path of the replay URL endpoint (API-17), and does it need Valve-side data? | FR-DATA-009 | [04](04-data-sources-and-ingestion.md) |
 | OQ-20 | What endpoint and data shape does the team comp prediction (API-18) use? | FR-LIVE-016 | [04](04-data-sources-and-ingestion.md) |
-| OQ-19 | How long is Deadlock's pre-game hero-swap phase, and does it close before the game clock starts? | FP-10 | [03](03-fair-play-and-compliance.md) |
+| OQ-19 | How long is Deadlock's pre-game hero-swap phase, and does it close before the game clock starts? **Deferred to a ranked-access Beta tester (DEC-047). FP-10 is safe without it.** | FP-10 | [03](03-fair-play-and-compliance.md) |
 
 ### Creative decisions pending
 

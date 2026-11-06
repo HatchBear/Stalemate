@@ -15,7 +15,7 @@ Specifies the scouting system: what each Scouting Card shows, how every value is
 
 1. The Broadcast delivers the roster: hero, Account ID and team for 12 players.
 2. Scouting starts for all 11 other players in parallel, within the rate limits in [04](04-data-sources-and-ingestion.md). Fields fill in progressively: the basic fields first (FR-SCOUT-001 to 004), then Build Profile, Power spikes and Playstyle (DEC-022).
-3. Scouting stays hidden until the Broadcast shows the game has started, which is after the pre-game hero swap phase closes, so scouting can't affect hero picks ([03](03-fair-play-and-compliance.md) FP-10, DEC-023). The length of that phase isn't documented [VERIFY in T-007].
+3. Scouting stays hidden until the Broadcast shows the game has started, which is after the pre-game hero swap phase closes, so scouting can't affect hero picks ([03](03-fair-play-and-compliance.md) FP-10, DEC-023). The length of that phase isn't documented, so the rule doesn't depend on it (DEC-047).
 4. If the Broadcast is unavailable (FR-DATA-007), the user can enter or paste players manually [ASSUMPTION].
 
 ### Scouting Card fields

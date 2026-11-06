@@ -27,7 +27,7 @@ Defines the rules that keep the app within Valve's terms and fair to other playe
 | [SSA §2.A](https://store.steampowered.com/agreement) | License to Valve content is personal and non-commercial | Hero and item art isn't bundled. The app stays free in v1 (DEC-018); any paid tier needs legal review first (OQ-10) |
 | [Steam Web API terms](https://steamcommunity.com/dev/apiterms) | No features that give an unfair competitive advantage. Retrieve a user's data only as requested by that user. 100,000 calls per day. A privacy policy is required | NFR-FAIR-005. The Steam Web API is not used for other players |
 | [deadlock-api data privacy](https://deadlock-api.com/data-privacy) | Players can delete their data and block future collection | NFR-FAIR-004. Empty results are shown as "No public data" |
-| Dota 2 precedent | Valve patched Dota 2 to block player profiles during the pregame phase, cutting off draft-phase scouting tools | Scouting fills in only after the Broadcast catches up, which is after the hero swap window closes ([05](05-player-scouting.md)). **[VERIFY]** Deadlock's pre-game swap phase length isn't documented (T-007). Scouting stays hidden until the game has started (FP-10) |
+| Dota 2 precedent | Valve patched Dota 2 to block player profiles during the pregame phase, cutting off draft-phase scouting tools | Scouting fills in only after the Broadcast catches up, which is after the hero swap window closes ([05](05-player-scouting.md)). Deadlock's pre-game swap phase length isn't documented, and the author can't test it (no ranked access). Scouting stays hidden until the game has started (FP-10), which is safe either way (DEC-047) |
 
 ### Rule set
 
@@ -42,7 +42,7 @@ Defines the rules that keep the app within Valve's terms and fair to other playe
 | FP-7 | The app never retries, scrapes or mirrors data for players who opted out of deadlock-api |
 | FP-8 | The app calls the Steam Web API, if at all, only for the user's own account |
 | FP-9 | The app doesn't claim or imply Valve endorsement, and states that it isn't affiliated with Valve |
-| FP-10 | Scouting Cards are shown only after the Broadcast shows the game has started, which means the pre-game hero-swap phase has closed [VERIFY in T-007] (DEC-023) |
+| FP-10 | Scouting Cards are shown only after the Broadcast shows the game has started, which means any pre-game hero-swap phase has closed. The rule doesn't depend on how long that phase is (DEC-023, DEC-047) |
 
 ### Live-Safe whitelist
 
@@ -103,7 +103,7 @@ A field is Live-Safe if a player could see it in-game at that moment. Fields mar
 - OQ-04: Which scoreboard fields are visible in-game (LS-05 to LS-09, LS-11, LS-13)?
 - OQ-02: Is there a way to locate the Broadcast for a match without the app running its own Valve protocol client (RSK-11)?
 - OQ-10 (deferred): Does a paid tier conflict with SSA §2.A's non-commercial license? Not needed for v1 (DEC-018). Get legal review before any paid tier.
-- OQ-19: How long is Deadlock's pre-game hero-swap phase, and does it close before the game clock starts? Secondary sources say each player gets one swap and the phase closes before the game starts, but give no duration (T-007, FP-10).
+- OQ-19 (deferred): How long is Deadlock's pre-game hero-swap phase, and does it close before the game clock starts? Secondary sources say each player gets one swap and the phase closes before the game starts, but give no duration. The author has no ranked access, so a Beta tester with ranked access checks it (DEC-047). FP-10 is safe without the answer.
 
 ## Acceptance Criteria
 
@@ -111,4 +111,4 @@ A field is Live-Safe if a player could see it in-game at that moment. Fields mar
 - [ ] TST-030 passes: no non-Live-Safe field appears in any Live Mode payload across 20 recorded matches.
 - [ ] Code review confirms no memory access, injection, hooking, packet capture or input APIs are linked.
 - [ ] The privacy policy is published at a stable URL before v1.
-- [ ] The pre-game swap phase is confirmed closed before any Scouting Card is shown (FP-10).
+- [ ] No Scouting Card is shown until the Broadcast reports game time above 0 (FP-10). A Beta tester with ranked access confirms the swap phase is over by then.

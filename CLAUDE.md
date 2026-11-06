@@ -22,7 +22,7 @@ The design docs `00`–`19` in this folder are the specification. Start at `00-i
 - Match the docs' voice: plain English, no filler.
 
 ## Tasks only the author can do
-T-006 (capture `console.log` lines), T-007 (verify scoreboard fields and the swap phase), T-013 (record matches), the hand-labelling in T-020 and T-023, and supplying UI reference screenshots. When your work depends on one of these, stop, say exactly what you need, and continue with anything unblocked.
+T-006 (capture `console.log` lines), T-007 (verify scoreboard fields), T-013 (record matches), the hand-labelling in T-020 and T-023, and supplying UI reference screenshots. The author has no ranked access, so ranked-only behavior (such as the pre-game swap phase) can't be tested; leave it to Beta testers and don't block on it. When your work depends on one of these, stop, say exactly what you need, and continue with anything unblocked.
 
 ## Done means
 Code builds, `cargo fmt --check` and `cargo clippy -- -D warnings` pass, the TC and TST cases listed for the task pass, and the task's requirement IDs are cited in the summary.
