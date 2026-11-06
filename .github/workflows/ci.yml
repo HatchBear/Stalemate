@@ -55,6 +55,8 @@ jobs:
         with:
           toolchain: 1.98.1
       - uses: Swatinem/rust-cache@v2
+      # valveprotos needs protoc at build time (DEC-049).
+      - run: choco install protoc -y
       - run: cargo test --workspace
       - run: cargo test -p stalemate-core --features fixtures
       - run: cargo test -p stalemate-compliance --features fixtures
