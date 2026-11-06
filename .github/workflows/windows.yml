@@ -32,6 +32,16 @@ jobs:
         run: >-
           pwsh -NoProfile -File scripts/package-windows.ps1
           ${{ startsWith(github.ref, 'refs/tags/v') && format('-Version {0}', github.ref_name) || '' }}
+      - name: Sanity-check the packages
+        shell: pwsh
+        run: |
+          Get-ChildItem target/package/windows/*.msi, target/package/windows/*.zip |
+            ForEach-Object { "{0}  {1:N0} bytes" -f $_.Name, $_.Length }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = (Get-ChildItem target/package/windows/*.zip | Select-Object -First 1).FullName
+          $z = [System.IO.Compression.ZipFile]::OpenRead($zip)
+          try { $names = $z.Entries | ForEach-Object { $_.Name } } finally { $z.Dispose() }
+          if ($names -notcontains 'stalemate.exe') { throw "zip lacks stalemate.exe" }
       - uses: actions/upload-artifact@v4
         with:
           name: stalemate-windows
