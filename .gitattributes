@@ -1,0 +1,3 @@
+# GitHub language stats: the tester guide (one HTML file with embedded fonts and
+# screenshots) is documentation, not source.
+site/** linguist-documentation
