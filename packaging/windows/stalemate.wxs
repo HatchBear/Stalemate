@@ -51,7 +51,7 @@
             Description="Scouting, live recommendations and post-match review for Deadlock"
             Target="[INSTALLFOLDER]stalemate.exe"
             WorkingDirectory="INSTALLFOLDER" />
-        <!-- A per-user shortcut needs a registry key path (ICE38 and ICE43 are suppressed in the build). -->
+        <!-- A per-user shortcut needs a registry key path (ICE38 and ICE43 want this; no ICE validation runs in the Alpha build). -->
         <RegistryValue Root="HKCU" Key="Software\Stalemate" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </StandardDirectory>
