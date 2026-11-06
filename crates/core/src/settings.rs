@@ -796,9 +796,11 @@ mod tests {
 
     #[test]
     fn rules_toml_matches_doc_14_block() {
-        let doc = std::fs::read_to_string(repo_config().join("../14-data-and-content-assets.md"))
-            .unwrap()
-            .replace("\r\n", "\n");
+        let doc = std::fs::read_to_string(
+            repo_config().join("../design-docs/14-data-and-content-assets.md"),
+        )
+        .unwrap()
+        .replace("\r\n", "\n");
         let start = doc.find("### DATA-001").unwrap();
         let block = &doc[start..];
         let block = &block[block.find("```toml\n").unwrap() + 8..];
