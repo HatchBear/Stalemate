@@ -9,6 +9,7 @@
 *.vpk
 console.log
 
-# Local tooling
-.claude/
+# Local tooling (the shared agent definitions in .claude/agents are tracked)
+.claude/*
+!.claude/agents/
 .obsidian/
