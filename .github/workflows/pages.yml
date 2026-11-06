@@ -1,0 +1,47 @@
+# Publishes the alpha tester guide (site/alpha-guide.html) to GitHub Pages at
+# https://hatchbear.github.io/Stalemate/ . Only that one file is published.
+# One-time setup: in the repo settings, set Pages "Source" to "GitHub Actions".
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble site
+        run: |
+          mkdir _site
+          cp site/alpha-guide.html _site/index.html
+          cp site/alpha-guide.html _site/alpha-guide.html
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -112,6 +112,7 @@ modules:
 | `windows.yml` | Push to `main`, `v*` and week tags | Build the MSI; upload as an artifact |
 | `linux-native.yml` | Push to `main`, `v*` and week tags | Build the binary in the oldest supported glibc container, then the `.deb`, `.rpm`, AppImage and tarball; install and launch smoke tests in Debian, Ubuntu, Fedora and Arch containers (TST-094); upload as artifacts (DEC-064) |
 | `release.yml` | Tag `v*`, or a week tag such as `26w45a` (DEC-077) | Create a GitHub Release with the `.flatpak` bundle, the native Linux packages and the MSI; update the AUR `PKGBUILD` version and checksum; for beta and stable, open a PR to the Flathub repository |
+| `pages.yml` | Push to `main` that changes `site/` | Publish the tester guide `site/alpha-guide.html` to GitHub Pages at `hatchbear.github.io/Stalemate` (DEC-078) |
 
 ### Versioning and channels
 
